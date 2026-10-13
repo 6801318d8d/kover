@@ -3,6 +3,7 @@ import 'package:kover/database/app_database.dart';
 import 'package:kover/database/dao/chapters_dao.dart';
 import 'package:kover/database/dao/list_query_helpers.dart';
 import 'package:kover/database/dao/volumes_dao.dart';
+import 'package:kover/database/tables/bookmarks.dart';
 import 'package:kover/database/tables/chapters.dart';
 import 'package:kover/database/tables/download.dart';
 import 'package:kover/database/tables/libraries.dart';
@@ -40,6 +41,7 @@ part 'series_dao.g.dart';
     ChapterGenres,
     ChapterTags,
     DownloadedPages,
+    Bookmarks,
   ],
 )
 class SeriesDao extends DatabaseAccessor<AppDatabase> with _$SeriesDaoMixin {
@@ -58,6 +60,19 @@ class SeriesDao extends DatabaseAccessor<AppDatabase> with _$SeriesDaoMixin {
           downloadedPages.chapterId.equalsExp(chapters.id),
         ),
       ]),
+  );
+
+  /// Whether series has at least one non-removed bookmark on an image chapter.
+  Expression<bool> get _hasBookmarks => series.id.isInQuery(
+    selectOnly(chapters)
+      ..addColumns([chapters.seriesId])
+      ..join([
+        innerJoin(db.bookmarks, db.bookmarks.chapterId.equalsExp(chapters.id)),
+      ])
+      ..where(
+        db.bookmarks.removed.equals(false) &
+            isBookmarkableChapterFormat(chapters.format),
+      ),
   );
 
   Expression<double> get _progressRatio =>
@@ -125,6 +140,7 @@ class SeriesDao extends DatabaseAccessor<AppDatabase> with _$SeriesDaoMixin {
     SortDirection direction = .ascending,
     bool hideRead = false,
     bool downloadedOnly = false,
+    bool bookmarkedOnly = false,
   }) async {
     final q =
         (select(series).join([
@@ -160,6 +176,10 @@ class SeriesDao extends DatabaseAccessor<AppDatabase> with _$SeriesDaoMixin {
 
     if (downloadedOnly) {
       q.where(_hasDownloads);
+    }
+
+    if (bookmarkedOnly) {
+      q.where(_hasBookmarks);
     }
 
     final mode = direction.toOrderingMode();
@@ -263,6 +283,7 @@ class SeriesDao extends DatabaseAccessor<AppDatabase> with _$SeriesDaoMixin {
     SortDirection direction = .ascending,
     bool hideRead = false,
     bool downloadedOnly = false,
+    bool bookmarkedOnly = false,
   }) {
     final query = select(series).join([
       leftOuterJoin(
@@ -287,6 +308,10 @@ class SeriesDao extends DatabaseAccessor<AppDatabase> with _$SeriesDaoMixin {
 
     if (downloadedOnly) {
       query.where(_hasDownloads);
+    }
+
+    if (bookmarkedOnly) {
+      query.where(_hasBookmarks);
     }
 
     final orderMode = direction.toOrderingMode();

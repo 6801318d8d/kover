@@ -41,6 +41,8 @@ sealed class KoverIcons {
   static const IconData zoomOut = LucideIcons.zoomOut;
   static const IconData zoomReset = LucideIcons.scan;
   static const IconData keyboard = LucideIcons.keyboard;
+  static const IconData bookmarkOn = LucideIcons.bookmark;
+  static const IconData bookmarkOff = LucideIcons.bookmarkOff;
 
   // Appearance
   static const IconData animation = Icons.animation_sharp;
@@ -75,6 +77,7 @@ sealed class KoverIcons {
   // Library entities
   static const IconData series = LucideIcons.list;
   static const IconData chapter = LucideIcons.fileText;
+  static const IconData volume = LucideIcons.book;
   static const IconData collection = LucideIcons.layoutGrid;
   static const IconData readingList = LucideIcons.layoutList;
   static const IconData book = LucideIcons.bookText;
