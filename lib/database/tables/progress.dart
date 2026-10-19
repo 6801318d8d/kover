@@ -18,6 +18,10 @@ class ReadingProgress extends Table {
   TextColumn get bookScrollId => text().nullable()();
   IntColumn get totalReads => integer().withDefault(const Constant(0))();
 
+  /// Whether this entry only contains partial remote progress and still needs
+  /// to be completed from the remote (e.g. the EPUB xpath).
+  BoolColumn get partial => boolean().withDefault(const Constant(false))();
+
   DateTimeColumn get created => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get lastModified =>
       dateTime().withDefault(currentDateAndTime)();

@@ -30,6 +30,7 @@ import 'generated/schema_v11.dart' as v11;
 import 'generated/schema_v12.dart' as v12;
 import 'generated/schema_v13.dart' as v13;
 import 'generated/schema_v14.dart' as v14;
+import 'generated/schema_v15.dart' as v15;
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -649,6 +650,41 @@ void main() {
 
       expect(chapters.first.totalReads, 0);
       expect(chapters.first.remoteLastRead, null);
+
+      await migratedDb.close();
+    });
+  });
+
+  group('from 14 to 15', () {
+    test('marks existing progress entries as not partial', () async {
+      final schema = await verifier.schemaAt(14);
+      final oldDb = v14.DatabaseAtV14(schema.newConnection());
+      await oldDb
+          .into(oldDb.readingProgress)
+          .insert(
+            v14.ReadingProgressCompanion.insert(
+              chapterId: const Value(1),
+              volumeId: 1,
+              seriesId: 1,
+              libraryId: 1,
+              pagesRead: const Value(5),
+              lastModified: Value(DateTime.now().millisecondsSinceEpoch),
+            ),
+          );
+      await oldDb.close();
+
+      final db = AppDatabase(schema.newConnection());
+      await verifier.migrateAndValidate(db, 15);
+      await db.close();
+
+      final migratedDb = v15.DatabaseAtV15(schema.newConnection());
+      final progress = await migratedDb
+          .select(migratedDb.readingProgress)
+          .getSingle();
+
+      expect(progress.chapterId, 1);
+      expect(progress.pagesRead, 5);
+      expect(progress.partial, 0);
 
       await migratedDb.close();
     });

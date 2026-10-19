@@ -136,6 +136,7 @@ class ReaderRepository {
         pagesRead: Value(progress.pageNum),
         bookScrollId: Value(progress.bookScrollId),
         lastModified: Value(DateTime.timestamp()),
+        partial: const Value(false),
         dirty: const Value(true),
       ),
     );

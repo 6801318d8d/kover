@@ -168,6 +168,9 @@ class ReaderDao extends DatabaseAccessor<AppDatabase> with _$ReaderDaoMixin {
   /// Get all chapter ids with outdated progress. Optionally restrict to series
   /// [seriesId] and/or chapters that have never been fetched locally
   /// ([onlyMissing]).
+  ///
+  /// When [onlyMissing] is false, partial EPUB progress entries are included
+  /// as well so their full progress (including the xpath) can be fetched.
   Future<List<int>> getOutdatedChapterIds({
     int? seriesId,
     bool onlyMissing = false,
@@ -177,10 +180,15 @@ class ReaderDao extends DatabaseAccessor<AppDatabase> with _$ReaderDaoMixin {
     final isLocalOutdated = readingProgress.lastModified.isSmallerThan(
       chapters.remoteLastRead,
     );
+    final isPartialEpub =
+        chapters.format.equalsValue(.epub) &
+        readingProgress.partial.equals(true);
 
     var condition =
         hasRemoteProgress &
-        (onlyMissing ? isMissingLocal : (isMissingLocal | isLocalOutdated));
+        (onlyMissing
+            ? isMissingLocal
+            : (isMissingLocal | isLocalOutdated | isPartialEpub));
 
     if (seriesId != null) {
       condition = condition & chapters.seriesId.equals(seriesId);
@@ -412,6 +420,7 @@ class ReaderDao extends DatabaseAccessor<AppDatabase> with _$ReaderDaoMixin {
           libraryId: Value(s.libraryId),
           pagesRead: Value(isRead ? c.pages : 0),
           lastModified: Value(DateTime.timestamp()),
+          partial: const Value(false),
           dirty: const Value(true),
         );
       });
@@ -449,6 +458,7 @@ class ReaderDao extends DatabaseAccessor<AppDatabase> with _$ReaderDaoMixin {
           libraryId: Value(s.libraryId),
           pagesRead: Value(isRead ? c.pages : 0),
           lastModified: Value(DateTime.timestamp()),
+          partial: const Value(false),
           dirty: const Value(true),
         );
       });
@@ -482,6 +492,7 @@ class ReaderDao extends DatabaseAccessor<AppDatabase> with _$ReaderDaoMixin {
           libraryId: Value(s.libraryId),
           pagesRead: Value(isRead ? c.pages : 0),
           lastModified: Value(DateTime.timestamp()),
+          partial: const Value(false),
           dirty: const Value(true),
         ),
       );

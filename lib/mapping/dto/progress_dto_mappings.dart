@@ -13,6 +13,7 @@ extension ProgressDtoMappings on ProgressDto {
       pagesRead: Value(pageNum),
       bookScrollId: Value(bookScrollId),
       lastModified: Value.absentIfNull(lastModifiedUtc?.normalizeUtc()),
+      partial: const Value(false),
       dirty: const Value(false),
     );
   }

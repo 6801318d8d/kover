@@ -685,11 +685,23 @@ class SeriesDao extends DatabaseAccessor<AppDatabase> with _$SeriesDaoMixin {
   Future<void> _upsertDetailEntries(
     Iterable<SeriesDetailCompanions> detailEntries,
   ) async {
+    final details = detailEntries.toList();
+    final seriesIds = details.map((d) => d.seriesId).toSet();
+    final libraryIds = seriesIds.isEmpty
+        ? <int, int>{}
+        : {
+            for (final s in await (select(
+              series,
+            )..where((t) => t.id.isIn(seriesIds))).get())
+              s.id: s.libraryId,
+          };
+
     final volumesBySeries = <int, Iterable<int>>{};
     final chaptersBySeries = <int, Iterable<int>>{};
 
     final allVolumes = <VolumesCompanion>{};
     final allChapters = <ChaptersCompanion>{};
+    final allProgress = <ReadingProgressCompanion>[];
     final allPeople = <PeopleCompanion>{};
     final allGenres = <GenresCompanion>{};
     final allTags = <TagsCompanion>{};
@@ -697,13 +709,34 @@ class SeriesDao extends DatabaseAccessor<AppDatabase> with _$SeriesDaoMixin {
     final allGenreLinks = <ChapterGenresCompanion>{};
     final allTagLinks = <ChapterTagsCompanion>{};
 
-    for (final detail in detailEntries) {
+    for (final detail in details) {
       final chapters = {
         ...detail.volumes.map((volume) => volume.chapters).expand((c) => c),
         ...detail.storyline,
         ...detail.specials,
         ...detail.chapters,
       };
+
+      final libraryId = libraryIds[detail.seriesId];
+      if (libraryId != null) {
+        for (final c in chapters) {
+          final progress = c.progress;
+          if (progress == null ||
+              !progress.pagesRead.present ||
+              progress.pagesRead.value <= 0) {
+            continue;
+          }
+
+          allProgress.add(
+            progress.copyWith(
+              chapterId: Value(c.chapter.id.value),
+              volumeId: Value(c.chapter.volumeId.value),
+              seriesId: Value(detail.seriesId),
+              libraryId: Value(libraryId),
+            ),
+          );
+        }
+      }
 
       volumesBySeries[detail.seriesId] = detail.volumes.map(
         (v) => v.volume.id.value,
@@ -761,6 +794,16 @@ class SeriesDao extends DatabaseAccessor<AppDatabase> with _$SeriesDaoMixin {
       }
       batch.insertAllOnConflictUpdate(chapters, allChapters);
     });
+
+    if (allProgress.isNotEmpty) {
+      await batch((batch) {
+        batch.insertAll(
+          readingProgress,
+          allProgress,
+          mode: .insertOrIgnore,
+        );
+      });
+    }
 
     await chunkedOperation(
       items: allChapters.map((c) => c.id.value),
@@ -847,8 +890,7 @@ class SeriesDao extends DatabaseAccessor<AppDatabase> with _$SeriesDaoMixin {
     await into(seriesCovers).insertOnConflictUpdate(cover);
   }
 
-  /// Upsert multiple series covers in a single batch to avoid per-insert
-  /// [notifyUpdates] cascades that can block the main thread.
+  /// Upsert multiple series covers.
   Future<void> upsertSeriesCoversBatch(
     Iterable<SeriesCoversCompanion> covers,
   ) async {
