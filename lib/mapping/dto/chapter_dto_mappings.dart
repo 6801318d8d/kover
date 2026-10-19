@@ -18,10 +18,6 @@ extension ChapterDtoMappings on ChapterDto {
   ChapterWithRelationsCompanion toChapterCompanions() {
     final genresList = genres?.toList() ?? [];
     final tagsList = tags?.toList() ?? [];
-    final localFormat = format != null
-        ? Format.fromDtoFormat(format!)
-        : Format.unknown;
-    final readPages = pagesRead ?? 0;
 
     return ChapterWithRelationsCompanion(
       chapter: ChaptersCompanion(
@@ -32,7 +28,9 @@ extension ChapterDtoMappings on ChapterDto {
         description: Value(summary),
         summary: Value(summary),
         isbn: Value(isbn),
-        format: Value(localFormat),
+        format: Value(
+          format != null ? Format.fromDtoFormat(format!) : .unknown,
+        ),
         language: Value.absentIfNull(language),
         minNumber: Value(minNumber!),
         maxNumber: Value(maxNumber!),
@@ -59,18 +57,6 @@ extension ChapterDtoMappings on ChapterDto {
         ),
         remotePagesRead: Value.absentIfNull(pagesRead),
       ),
-      progress: readPages > 0
-          ? ReadingProgressCompanion(
-              chapterId: Value(id!),
-              volumeId: Value(volumeId!),
-              pagesRead: Value(readPages),
-              lastModified: Value.absentIfNull(
-                lastReadingProgressUtc?.normalizeUtc(),
-              ),
-              partial: Value(localFormat == Format.epub),
-              dirty: const Value(false),
-            )
-          : null,
       writers: convertPersonDtoList(writers),
       coverArtists: convertPersonDtoList(coverArtists),
       publishers: convertPersonDtoList(publishers),

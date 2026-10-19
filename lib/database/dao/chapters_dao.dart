@@ -284,7 +284,6 @@ class const ChapterRelations({
 
 class const ChapterWithRelationsCompanion({
   required final ChaptersCompanion chapter,
-  final ReadingProgressCompanion? progress,
   required final Iterable<PeopleCompanion> writers,
   required final Iterable<PeopleCompanion> coverArtists,
   required final Iterable<PeopleCompanion> publishers,
@@ -366,10 +365,6 @@ class const ChapterWithRelationsCompanion({
     }
     return ChapterWithRelationsCompanion(
       chapter: next,
-      progress: progress?.copyWith(
-        seriesId: seriesId,
-        volumeId: volumeId,
-      ),
       writers: writers,
       coverArtists: coverArtists,
       publishers: publishers,

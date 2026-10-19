@@ -15,6 +15,7 @@ import 'package:kover/database/tables/series_metadata.dart';
 import 'package:kover/database/tables/volumes.dart';
 import 'package:kover/database/tables/want_to_read.dart';
 import 'package:kover/mapping/enums/sort_direction.dart';
+import 'package:kover/models/enums/format.dart';
 import 'package:kover/models/enums/sort_direction.dart';
 import 'package:kover/models/enums/order_by_option.dart';
 import 'package:kover/utils/chunked_operation.dart';
@@ -720,19 +721,25 @@ class SeriesDao extends DatabaseAccessor<AppDatabase> with _$SeriesDaoMixin {
       final libraryId = libraryIds[detail.seriesId];
       if (libraryId != null) {
         for (final c in chapters) {
-          final progress = c.progress;
-          if (progress == null ||
-              !progress.pagesRead.present ||
-              progress.pagesRead.value <= 0) {
+          final remotePagesRead = c.chapter.remotePagesRead;
+          if (!remotePagesRead.present || (remotePagesRead.value ?? 0) <= 0) {
             continue;
           }
 
+          final remoteLastRead = c.chapter.remoteLastRead;
+
           allProgress.add(
-            progress.copyWith(
+            ReadingProgressCompanion(
               chapterId: Value(c.chapter.id.value),
               volumeId: Value(c.chapter.volumeId.value),
               seriesId: Value(detail.seriesId),
               libraryId: Value(libraryId),
+              pagesRead: Value(remotePagesRead.value!),
+              lastModified: Value.absentIfNull(
+                remoteLastRead.present ? remoteLastRead.value : null,
+              ),
+              partial: Value(c.chapter.format.value == Format.epub),
+              dirty: const Value(false),
             ),
           );
         }

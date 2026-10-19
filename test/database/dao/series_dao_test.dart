@@ -144,13 +144,15 @@ void main() {
     required int id,
     required int seriesId,
     required int pagesRead,
+    Format format = Format.epub,
+    DateTime? remoteLastRead,
   }) {
     return ChapterWithRelationsCompanion(
       chapter: ChaptersCompanion(
         id: Value(id),
         volumeId: const Value(0),
         seriesId: Value(seriesId),
-        format: const Value(Format.epub),
+        format: Value(format),
         minNumber: const Value(0),
         maxNumber: const Value(0),
         sortOrder: const Value(0),
@@ -161,13 +163,8 @@ void main() {
         publicationStatus: const Value(PublicationStatus.unknown),
         created: Value(DateTime.now()),
         lastModified: Value(DateTime.now()),
-      ),
-      progress: ReadingProgressCompanion(
-        chapterId: Value(id),
-        volumeId: const Value(0),
-        pagesRead: Value(pagesRead),
-        partial: const Value(true),
-        dirty: const Value(false),
+        remotePagesRead: Value(pagesRead),
+        remoteLastRead: Value.absentIfNull(remoteLastRead),
       ),
       writers: const [],
       coverArtists: const [],
@@ -358,21 +355,40 @@ void main() {
         await insertLibrary(1);
         await insertSeries(1);
 
+        final remoteLastRead = DateTime(2024, 1, 1);
+
         await database.seriesDao.upsertDetailsBatch([
           detailWithChapters([
-            chapterWithProgress(id: 10, seriesId: 1, pagesRead: 2),
+            chapterWithProgress(
+              id: 10,
+              seriesId: 1,
+              pagesRead: 2,
+              remoteLastRead: remoteLastRead,
+            ),
             chapterWithProgress(id: 20, seriesId: 1, pagesRead: 0),
+            chapterWithProgress(
+              id: 30,
+              seriesId: 1,
+              pagesRead: 3,
+              format: Format.image,
+            ),
           ]),
         ]);
 
         final progress = await database.select(database.readingProgress).get();
 
-        expect(progress, hasLength(1));
-        expect(progress.single.chapterId, 10);
-        expect(progress.single.seriesId, 1);
-        expect(progress.single.libraryId, 1);
-        expect(progress.single.pagesRead, 2);
-        expect(progress.single.partial, isTrue);
+        expect(progress, hasLength(2));
+
+        final epub = progress.singleWhere((p) => p.chapterId == 10);
+        expect(epub.seriesId, 1);
+        expect(epub.libraryId, 1);
+        expect(epub.pagesRead, 2);
+        expect(epub.lastModified, remoteLastRead);
+        expect(epub.partial, isTrue);
+
+        final image = progress.singleWhere((p) => p.chapterId == 30);
+        expect(image.pagesRead, 3);
+        expect(image.partial, isFalse);
       });
 
       test('does not overwrite existing local progress', () async {
