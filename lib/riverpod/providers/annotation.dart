@@ -7,8 +7,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'annotation.g.dart';
 
-/// Kavita's default color for the first highlight slot, used until the user's
-/// highlight slots are known.
+/// Kavita's default color for the first highlight slot, used while the user's
+/// highlight slots are unknown.
 const defaultHighlightColor = Color.fromRGBO(0, 255, 255, 0.4);
 
 @riverpod
@@ -41,25 +41,23 @@ Future<Map<String, Map<String, String>>> highlightCss(
   return buildHighlightCss(annotations: annotations, slots: slots);
 }
 
-/// Builds the highlight styles keyed by selector: the highlight tag gets the
-/// first slot color as fallback, each known annotation the color of its slot.
+/// Builds the highlight styles keyed by id selector, one per known annotation
+/// colored by its slot. Highlights without a known annotation stay unstyled:
+/// downloaded pages keep the highlights of annotations deleted since.
 Map<String, Map<String, String>> buildHighlightCss({
   required List<AnnotationModel> annotations,
   required List<Color> slots,
 }) {
-  Map<String, String> background(Color color) => {
-    'background-color': color.toCssRgba(),
-  };
+  Color slotColor(int index) => index >= 0 && index < slots.length
+      ? slots[index]
+      : slots.firstOrNull ?? defaultHighlightColor;
 
   return {
-    HtmlConstants.highlightTag: background(
-      slots.firstOrNull ?? defaultHighlightColor,
-    ),
     for (final annotation in annotations)
-      if (annotation.selectedSlotIndex >= 0 &&
-          annotation.selectedSlotIndex < slots.length)
-        '#${HtmlConstants.highlightIdPrefix}${annotation.id}': background(
-          slots[annotation.selectedSlotIndex],
-        ),
+      '#${HtmlConstants.highlightIdPrefix}${annotation.id}': {
+        'background-color': slotColor(
+          annotation.selectedSlotIndex,
+        ).toCssRgba(),
+      },
   };
 }

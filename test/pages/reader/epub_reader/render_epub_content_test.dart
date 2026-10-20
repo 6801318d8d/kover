@@ -8,7 +8,6 @@ import 'package:kover/utils/html_constants.dart';
 import 'package:material_ui/material_ui.dart';
 
 void main() {
-  const fallback = Color(0x6600ffff);
   const highlight = Color(0x6600ff00);
 
   Future<List<TextSpan>> pumpContent(WidgetTester tester, String html) async {
@@ -18,9 +17,6 @@ void main() {
           (ref) async => RenderEpubContentModel(
             epubSettings: const EpubReaderSettingsState(),
             customCss: {
-              HtmlConstants.highlightTag: {
-                'background-color': fallback.toCssRgba(),
-              },
               '#${HtmlConstants.highlightIdPrefix}2': {
                 'background-color': highlight.toCssRgba(),
               },
@@ -67,13 +63,15 @@ void main() {
     expect(background(spans, 'plain '), isNull);
   });
 
-  testWidgets('colors an unknown highlight with the fallback', (tester) async {
+  testWidgets('leaves a highlight of an unknown annotation unstyled', (
+    tester,
+  ) async {
     final spans = await pumpContent(
       tester,
       '<p><${HtmlConstants.highlightTag} '
       'id="${HtmlConstants.highlightIdPrefix}9">marked</${HtmlConstants.highlightTag}></p>',
     );
 
-    expect(background(spans, 'marked'), isSameColorAs(fallback));
+    expect(background(spans, 'marked'), isNull);
   });
 }

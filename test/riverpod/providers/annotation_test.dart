@@ -39,12 +39,10 @@ void main() {
       });
     });
 
-    test('uses the first slot for highlights without known annotation', () {
+    test('styles nothing without known annotations', () {
       final css = buildHighlightCss(annotations: [], slots: [green, yellow]);
 
-      expect(css[HtmlConstants.highlightTag], {
-        'background-color': green.toCssRgba(),
-      });
+      expect(css, isEmpty);
     });
 
     test('falls back to the default color without slots', () {
@@ -54,19 +52,22 @@ void main() {
       );
 
       expect(css, {
-        HtmlConstants.highlightTag: {
+        '#${HtmlConstants.highlightIdPrefix}4': {
           'background-color': defaultHighlightColor.toCssRgba(),
         },
       });
     });
 
-    test('skips annotations referencing a missing slot', () {
+    test('uses the first slot for a missing slot', () {
       final css = buildHighlightCss(
         annotations: [annotation(id: 4, slot: 5), annotation(id: 5, slot: -1)],
-        slots: [yellow],
+        slots: [yellow, green],
       );
 
-      expect(css.keys, [HtmlConstants.highlightTag]);
+      expect(css.values, [
+        {'background-color': yellow.toCssRgba()},
+        {'background-color': yellow.toCssRgba()},
+      ]);
     });
   });
 }
