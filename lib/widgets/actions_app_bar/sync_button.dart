@@ -172,5 +172,7 @@ String _phaseLabel(AppLocalizations l, SyncPhase phase) {
     refreshServerSettings: () => l.refreshingServerSettings,
     refreshServerFonts: () => l.refreshingServerFonts,
     refreshToc: (chapterId) => l.refreshingChapterToc(chapterId),
+    refreshChapterProgress: (chapterId) =>
+        l.refreshingChapterProgress(chapterId),
   );
 }

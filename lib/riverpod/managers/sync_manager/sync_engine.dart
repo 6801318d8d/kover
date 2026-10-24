@@ -175,6 +175,8 @@ class SyncEngine({
           () async => await refreshCovers(seriesId: seriesId),
       refreshToc: (chapterId) =>
           () async => await refreshToc(chapterId: chapterId),
+      refreshChapterProgress: (chapterId) =>
+          () async => await refreshChapterProgress(chapterId: chapterId),
       ensureDetailsAndProgress: (seriesId) =>
           () async => await ensureDetailsAndProgress(seriesId: seriesId),
       seriesDetails: () =>
@@ -284,6 +286,12 @@ class SyncEngine({
   Future<void> refreshToc({required int chapterId}) async {
     await _pool.withResource(
       () => bookRepo.refreshChapterToc(chapterId: chapterId),
+    );
+  }
+
+  Future<void> refreshChapterProgress({required int chapterId}) async {
+    await _pool.withResource(
+      () => readerRepo.refreshChapterProgress(chapterId: chapterId),
     );
   }
 

@@ -786,6 +786,17 @@
             }
         }
     },
+    "refreshingChapterProgress": "Refreshing reading progress for chapter {chapterId}",
+    "@refreshingChapterProgress": {
+        "description": "Label for the syncing chapter progress phase with the chapter ID",
+        "placeholders": {
+            "chapterId": {
+                "description": "The ID of the chapter which reading progress is being refreshed",
+                "type": "int",
+                "example": "42"
+            }
+        }
+    },
     "invalidCredentials": "Invalid Credentials",
     "@invalidCredentials": {
         "description": "User display error displayed when credentials are invalid"

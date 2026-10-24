@@ -39,6 +39,8 @@ sealed class SyncPhase with _$SyncPhase {
   const factory refreshMetadata({required int seriesId}) = RefreshMetadata;
   const factory refreshCovers({required int seriesId}) = RefreshCovers;
   const factory refreshToc({required int chapterId}) = RefreshToc;
+  const factory refreshChapterProgress({required int chapterId}) =
+      RefreshChapterProgress;
   const factory ensureDetailsAndProgress({required int seriesId}) =
       EnsureDetailsAndProgress;
   const factory seriesDetails() = SeriesDetails;
@@ -51,7 +53,8 @@ sealed class SyncPhase with _$SyncPhase {
       RefreshServerFonts() ||
       RefreshMetadata() ||
       RefreshCovers() ||
-      RefreshToc() => {},
+      RefreshToc() ||
+      RefreshChapterProgress() => {},
       AllSeries() => {const .libraries()},
       SeriesDetails() => {const .allSeries()},
       Metadata() ||
@@ -193,6 +196,11 @@ class SyncManager extends _$SyncManager {
   /// Refresh chapter toc for chapter [chapterId]
   void refreshChapterToc({required int chapterId}) {
     _runPhase(.refreshToc(chapterId: chapterId));
+  }
+
+  /// Refresh reading progress for chapter [chapterId]
+  Future<void> refreshChapterProgress({required int chapterId}) async {
+    await _runPhase(.refreshChapterProgress(chapterId: chapterId));
   }
 
   void _enqueuePhases(Set<SyncPhase> phases) {
