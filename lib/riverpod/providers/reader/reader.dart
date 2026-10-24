@@ -6,6 +6,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kover/models/chapter_model.dart';
 import 'package:kover/models/progress_model.dart';
 import 'package:kover/models/series_model.dart';
+import 'package:kover/riverpod/providers/connectivity.dart';
 import 'package:kover/riverpod/repository/chapters_repository.dart';
 import 'package:kover/riverpod/repository/reader_repository.dart';
 import 'package:kover/riverpod/repository/series_repository.dart';
@@ -58,9 +59,16 @@ Future<ProgressModel?> readerProgress(
   required int chapterId,
 }) async {
   final repo = ref.watch(readerRepositoryProvider);
+  // Read before any await: the provider can be disposed while it loads.
+  final hasConnection = ref.read(hasConnectionProvider).value ?? true;
   final chapter = await ref.read(
     readerChapterProvider(seriesId: seriesId, chapterId: chapterId).future,
   );
+
+  // Another device may have moved the position since the last sync.
+  if (hasConnection) {
+    await repo.refreshProgress(chapter.id);
+  }
 
   return repo.getProgress(chapter.id);
 }

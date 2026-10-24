@@ -185,6 +185,36 @@ class ReaderRepository {
     );
   }
 
+  /// Fetch the server progress for [chapterId] and merge it with the local
+  /// one, so that a reader opened before the sync finishes doesn't resume from
+  /// an outdated position and send it back. Newer local progress that wasn't
+  /// sent yet still wins. Gives up after [timeout].
+  Future<void> refreshProgress(
+    int chapterId, {
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    try {
+      final remote = await _readerClient
+          .getProgress(chapterId)
+          .timeout(timeout);
+      if (!remote.lastModified.present) return;
+
+      final local = await _db.readerDao.getProgress(chapterId);
+      if (local == null && remote.pagesRead.value == 0) return;
+
+      await _db.readerDao.mergeProgressBatch([remote]);
+    } catch (e) {
+      log.warning(
+        'could not refresh progress',
+        attributes: {
+          'chapter_id': chapterId,
+          'error_type': e.runtimeType,
+          'error_message': e,
+        },
+      );
+    }
+  }
+
   /// Synchronize all dirty progress entries by sending them to the backend,
   /// refetching the updated state and finally merging it with the local state.
   Future<void> mergeProgress() async {

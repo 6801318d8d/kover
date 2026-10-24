@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kover/database/app_database.dart';
@@ -85,6 +87,78 @@ void main() {
         mockReaderDao.getOutdatedChapterIds(seriesId: 1, onlyMissing: true),
       ).called(1);
       verify(mockReaderDao.mergeProgressBatch([expected])).called(1);
+    });
+
+    test('refreshProgress merges the server progress', () async {
+      final repo = ReaderRepository(
+        db: mockDb,
+        readerClient: mockReaderClient,
+      );
+
+      final remote = ReadingProgressCompanion(
+        chapterId: const Value(1),
+        seriesId: const Value(1),
+        pagesRead: const Value(10),
+        bookScrollId: const Value('scrollId'),
+        lastModified: Value(DateTime.now()),
+      );
+
+      when(mockReaderClient.getProgress(1)).thenAnswer((_) async => remote);
+
+      await repo.refreshProgress(1);
+
+      verify(mockReaderDao.mergeProgressBatch([remote])).called(1);
+    });
+
+    test(
+      'refreshProgress skips when neither the server nor the device has progress',
+      () async {
+        final repo = ReaderRepository(
+          db: mockDb,
+          readerClient: mockReaderClient,
+        );
+
+        final remote = ReadingProgressCompanion(
+          chapterId: const Value(1),
+          pagesRead: const Value(0),
+          lastModified: Value(DateTime.utc(1)),
+        );
+
+        when(mockReaderClient.getProgress(1)).thenAnswer((_) async => remote);
+        when(mockReaderDao.getProgress(1)).thenAnswer((_) async => null);
+
+        await repo.refreshProgress(1);
+
+        verifyNever(mockReaderDao.mergeProgressBatch(any));
+      },
+    );
+
+    test('refreshProgress keeps local progress when the fetch fails', () async {
+      final repo = ReaderRepository(
+        db: mockDb,
+        readerClient: mockReaderClient,
+      );
+
+      when(mockReaderClient.getProgress(1)).thenThrow(Exception('offline'));
+
+      await repo.refreshProgress(1);
+
+      verifyNever(mockReaderDao.mergeProgressBatch(any));
+    });
+
+    test('refreshProgress gives up after the timeout', () async {
+      final repo = ReaderRepository(
+        db: mockDb,
+        readerClient: mockReaderClient,
+      );
+
+      when(
+        mockReaderClient.getProgress(1),
+      ).thenAnswer((_) => Completer<ReadingProgressCompanion>().future);
+
+      await repo.refreshProgress(1, timeout: const Duration(milliseconds: 10));
+
+      verifyNever(mockReaderDao.mergeProgressBatch(any));
     });
   });
 }
