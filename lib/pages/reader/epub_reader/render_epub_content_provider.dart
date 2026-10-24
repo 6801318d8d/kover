@@ -24,9 +24,10 @@ Future<RenderEpubContentModel> renderEpubContent(
   final css = await ref.watch(
     customCssProvider(seriesId: seriesId).future,
   );
-  final highlightCss = await ref.watch(
-    highlightCssProvider(seriesId: seriesId).future,
-  );
+  // Highlights only change colors: don't hold the render, nor the reflow
+  // measure built on it, while they load.
+  final highlightCss =
+      ref.watch(highlightCssProvider(seriesId: seriesId)).value ?? const {};
 
   return RenderEpubContentModel(
     epubSettings: epubSettings,
