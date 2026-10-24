@@ -1,3 +1,4 @@
+import 'package:kover/api/openapi.swagger.dart';
 import 'package:kover/database/app_database.dart';
 import 'package:kover/mapping/dto/annotation_dto_mappings.dart';
 import 'package:kover/models/annotation_model.dart';
@@ -33,19 +34,25 @@ class AnnotationRepository(
       .watchHighlightSlots()
       .map((l) => l.map((slot) => Color(slot.color)).toList());
 
-  /// Fetch the annotations of [chapterId] from the server and replace the
-  /// stored ones.
-  Future<void> refreshChapterAnnotations({required int chapterId}) async {
-    final dtos = await _client.getChapterAnnotations(chapterId);
-    final entries = dtos
-        .where((dto) => dto.id != null)
-        .map((dto) => dto.toAnnotationCompanion())
-        .toList();
+  /// Fetch all annotations visible to the user and merge them with the stored
+  /// ones. Annotations with local changes are kept.
+  Future<void> refreshAllAnnotations() async {
+    final entries = _toCompanions(await _client.getAllAnnotations());
+    await _db.annotationDao.mergeAnnotations(entries);
 
-    await _db.annotationDao.replaceChapterAnnotations(
-      chapterId: chapterId,
-      entries: entries,
+    log.debug(
+      'refreshed all annotations',
+      attributes: {'count': entries.length},
     );
+  }
+
+  /// Fetch the annotations of [chapterId] from the server and merge them with
+  /// the stored ones. Annotations with local changes are kept.
+  Future<void> refreshChapterAnnotations({required int chapterId}) async {
+    final entries = _toCompanions(
+      await _client.getChapterAnnotations(chapterId),
+    );
+    await _db.annotationDao.mergeAnnotations(entries, chapterId: chapterId);
 
     log.debug(
       'refreshed chapter annotations',
@@ -64,4 +71,10 @@ class AnnotationRepository(
       slots.indexed.map((e) => e.$2.toHighlightSlotCompanion(e.$1)),
     );
   }
+
+  static List<AnnotationsCompanion> _toCompanions(List<AnnotationDto> dtos) =>
+      dtos
+          .where((dto) => dto.id != null)
+          .map((dto) => dto.toAnnotationCompanion())
+          .toList();
 }

@@ -43,7 +43,9 @@ Future<Map<String, Map<String, String>>> highlightCss(
 
 /// Builds the highlight styles keyed by id selector, one per known annotation
 /// colored by its slot. Highlights without a known annotation stay unstyled:
-/// downloaded pages keep the highlights of annotations deleted since.
+/// downloaded pages keep the highlights of annotations deleted since. Kavita
+/// ids its highlights by server id, so annotations not on the server yet have
+/// no style.
 Map<String, Map<String, String>> buildHighlightCss({
   required List<AnnotationModel> annotations,
   required List<Color> slots,
@@ -54,10 +56,11 @@ Map<String, Map<String, String>> buildHighlightCss({
 
   return {
     for (final annotation in annotations)
-      '#${HtmlConstants.highlightIdPrefix}${annotation.id}': {
-        'background-color': slotColor(
-          annotation.selectedSlotIndex,
-        ).toCssRgba(),
-      },
+      if (annotation.serverId != null)
+        '#${HtmlConstants.highlightIdPrefix}${annotation.serverId}': {
+          'background-color': slotColor(
+            annotation.selectedSlotIndex,
+          ).toCssRgba(),
+        },
   };
 }

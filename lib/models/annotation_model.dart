@@ -6,6 +6,7 @@ part 'annotation_model.freezed.dart';
 @freezed
 class AnnotationModel({
   required final int id,
+  final int? serverId,
   required final int seriesId,
   required final int volumeId,
   required final int chapterId,
@@ -19,8 +20,9 @@ class AnnotationModel({
   required final int ownerUserId,
   final DateTime? lastModified,
 }) with _$AnnotationModel {
-  factory fromDatabaseModel(AnnotationData data) => AnnotationModel(
+  factory fromDatabaseModel(Annotation data) => AnnotationModel(
     id: data.id,
+    serverId: data.serverId,
     seriesId: data.seriesId,
     volumeId: data.volumeId,
     chapterId: data.chapterId,

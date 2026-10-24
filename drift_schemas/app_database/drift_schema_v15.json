@@ -3922,9 +3922,31 @@
             "moor_type": "int",
             "nullable": false,
             "customConstraints": null,
+            "defaultConstraints": "PRIMARY KEY AUTOINCREMENT",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "PRIMARY KEY AUTOINCREMENT"
+            },
             "default_dart": null,
             "default_client_dart": null,
-            "dsl_features": []
+            "dsl_features": [
+              "auto-increment"
+            ]
+          },
+          {
+            "name": "server_id",
+            "getter_name": "serverId",
+            "moor_type": "int",
+            "nullable": true,
+            "customConstraints": null,
+            "defaultConstraints": "UNIQUE",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "UNIQUE"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": [
+              "unique"
+            ]
           },
           {
             "name": "series_id",
@@ -4097,14 +4119,39 @@
             "default_dart": null,
             "default_client_dart": null,
             "dsl_features": []
+          },
+          {
+            "name": "dirty",
+            "getter_name": "dirty",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"dirty\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"dirty\" IN (0, 1))"
+            },
+            "default_dart": "const CustomExpression('0')",
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "deleted",
+            "getter_name": "deleted",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"deleted\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"deleted\" IN (0, 1))"
+            },
+            "default_dart": "const CustomExpression('0')",
+            "default_client_dart": null,
+            "dsl_features": []
           }
         ],
         "is_virtual": false,
         "without_rowid": false,
-        "constraints": [],
-        "explicit_pk": [
-          "id"
-        ]
+        "constraints": []
       }
     },
     {
@@ -4502,7 +4549,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"annotations\" (\"id\" INTEGER NOT NULL, \"series_id\" INTEGER NOT NULL REFERENCES series (id) ON DELETE CASCADE, \"volume_id\" INTEGER NOT NULL REFERENCES volumes (id), \"chapter_id\" INTEGER NOT NULL REFERENCES chapters (id) ON DELETE CASCADE, \"page\" INTEGER NOT NULL, \"x_path\" TEXT NOT NULL, \"ending_x_path\" TEXT NULL, \"selected_text\" TEXT NOT NULL, \"comment\" TEXT NULL, \"selected_slot_index\" INTEGER NOT NULL, \"contains_spoiler\" INTEGER NOT NULL DEFAULT 0 CHECK (\"contains_spoiler\" IN (0, 1)), \"owner_user_id\" INTEGER NOT NULL, \"last_modified\" INTEGER NULL, PRIMARY KEY (\"id\"));"
+          "sql": "CREATE TABLE IF NOT EXISTS \"annotations\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"server_id\" INTEGER NULL UNIQUE, \"series_id\" INTEGER NOT NULL REFERENCES series (id) ON DELETE CASCADE, \"volume_id\" INTEGER NOT NULL REFERENCES volumes (id), \"chapter_id\" INTEGER NOT NULL REFERENCES chapters (id) ON DELETE CASCADE, \"page\" INTEGER NOT NULL, \"x_path\" TEXT NOT NULL, \"ending_x_path\" TEXT NULL, \"selected_text\" TEXT NOT NULL, \"comment\" TEXT NULL, \"selected_slot_index\" INTEGER NOT NULL, \"contains_spoiler\" INTEGER NOT NULL DEFAULT 0 CHECK (\"contains_spoiler\" IN (0, 1)), \"owner_user_id\" INTEGER NOT NULL, \"last_modified\" INTEGER NULL, \"dirty\" INTEGER NOT NULL DEFAULT 0 CHECK (\"dirty\" IN (0, 1)), \"deleted\" INTEGER NOT NULL DEFAULT 0 CHECK (\"deleted\" IN (0, 1)));"
         }
       ]
     },

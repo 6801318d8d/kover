@@ -2,29 +2,54 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kover/database/app_database.dart';
+import 'package:kover/models/enums/age_rating.dart';
+import 'package:kover/models/enums/format.dart';
+import 'package:kover/models/enums/publication_status.dart';
 
 void main() {
   late AppDatabase db;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase(
       DatabaseConnection(
         NativeDatabase.memory(),
         closeStreamsSynchronously: true,
       ),
     );
+    for (final (chapterId, seriesId) in [(1, 1), (2, 1), (3, 2)]) {
+      await db
+          .into(db.chapters)
+          .insert(
+            ChaptersCompanion.insert(
+              id: Value(chapterId),
+              volumeId: 1,
+              seriesId: seriesId,
+              format: Format.epub,
+              minNumber: 0,
+              maxNumber: 0,
+              sortOrder: 0,
+              ageRating: AgeRating.unknown,
+              publicationStatus: PublicationStatus.unknown,
+              wordCount: 0,
+              releaseDate: DateTime.now(),
+              created: DateTime.now(),
+              lastModified: DateTime.now(),
+              pages: 10,
+            ),
+          );
+    }
   });
 
   tearDown(() => db.close());
 
-  AnnotationsCompanion annotation({
-    required int id,
-    int seriesId = 1,
+  AnnotationsCompanion remote({
+    required int serverId,
     int chapterId = 1,
+    int seriesId = 1,
     int slot = 0,
   }) {
     return AnnotationsCompanion.insert(
-      id: Value(id),
+      serverId: Value(serverId),
       seriesId: seriesId,
       volumeId: 1,
       chapterId: chapterId,
@@ -36,6 +61,11 @@ void main() {
     );
   }
 
+  Future<void> insertLocal(AnnotationsCompanion entry) =>
+      db.into(db.annotations).insert(entry);
+
+  Future<List<Annotation>> stored() => db.select(db.annotations).get();
+
   HighlightSlotsCompanion slot(int index, int color) {
     return HighlightSlotsCompanion.insert(
       slotIndex: Value(index),
@@ -43,50 +73,103 @@ void main() {
     );
   }
 
-  group('replaceChapterAnnotations', () {
-    test('replaces only the annotations of the given chapter', () async {
+  group('mergeAnnotations', () {
+    test('inserts new annotations and updates clean ones', () async {
       final dao = db.annotationDao;
-      await dao.replaceChapterAnnotations(
-        chapterId: 1,
-        entries: [annotation(id: 1), annotation(id: 2)],
-      );
-      await dao.replaceChapterAnnotations(
-        chapterId: 2,
-        entries: [annotation(id: 3, chapterId: 2)],
-      );
+      await dao.mergeAnnotations([remote(serverId: 1), remote(serverId: 2)]);
+      final id = (await stored()).firstWhere((a) => a.serverId == 2).id;
 
-      await dao.replaceChapterAnnotations(
-        chapterId: 1,
-        entries: [annotation(id: 2, slot: 3)],
-      );
+      await dao.mergeAnnotations([
+        remote(serverId: 1),
+        remote(serverId: 2, slot: 3),
+      ]);
 
-      final stored = await dao.watchSeriesAnnotations(seriesId: 1).first;
-      expect(stored.map((a) => a.id), unorderedEquals([2, 3]));
-      expect(stored.firstWhere((a) => a.id == 2).selectedSlotIndex, 3);
+      final rows = await stored();
+      expect(rows.map((a) => a.serverId), unorderedEquals([1, 2]));
+      final updated = rows.firstWhere((a) => a.serverId == 2);
+      expect(updated.id, id);
+      expect(updated.selectedSlotIndex, 3);
     });
 
-    test('clears the chapter when no entries are given', () async {
-      final dao = db.annotationDao;
-      await dao.replaceChapterAnnotations(
-        chapterId: 1,
-        entries: [annotation(id: 1)],
+    test('skips annotations of unknown chapters', () async {
+      await db.annotationDao.mergeAnnotations([
+        remote(serverId: 1),
+        remote(serverId: 2, chapterId: 99),
+      ]);
+
+      expect((await stored()).map((a) => a.serverId), [1]);
+    });
+
+    test('keeps rows with local changes', () async {
+      await insertLocal(
+        remote(serverId: 1, slot: 4).copyWith(dirty: const Value(true)),
+      );
+      await insertLocal(
+        remote(serverId: 2).copyWith(
+          dirty: const Value(true),
+          deleted: const Value(true),
+        ),
+      );
+      await insertLocal(
+        remote(serverId: 3).copyWith(
+          serverId: const Value(null),
+          dirty: const Value(true),
+        ),
       );
 
-      await dao.replaceChapterAnnotations(chapterId: 1, entries: []);
+      await db.annotationDao.mergeAnnotations([remote(serverId: 1)]);
 
-      expect(await dao.watchSeriesAnnotations(seriesId: 1).first, isEmpty);
+      final rows = await stored();
+      expect(rows, hasLength(3));
+      expect(rows.firstWhere((a) => a.serverId == 1).selectedSlotIndex, 4);
+    });
+
+    test('deletes clean rows missing from the server', () async {
+      final dao = db.annotationDao;
+      await dao.mergeAnnotations([
+        remote(serverId: 1),
+        remote(serverId: 2, chapterId: 2),
+        remote(serverId: 3, chapterId: 3, seriesId: 2),
+      ]);
+
+      await dao.mergeAnnotations([remote(serverId: 1)]);
+
+      expect((await stored()).map((a) => a.serverId), [1]);
+    });
+
+    test('limits deletions to the given chapter', () async {
+      final dao = db.annotationDao;
+      await dao.mergeAnnotations([
+        remote(serverId: 1),
+        remote(serverId: 2),
+        remote(serverId: 3, chapterId: 2),
+      ]);
+
+      await dao.mergeAnnotations([remote(serverId: 2)], chapterId: 1);
+
+      expect(
+        (await stored()).map((a) => a.serverId),
+        unorderedEquals([2, 3]),
+      );
     });
   });
 
-  test('watchSeriesAnnotations only emits annotations of the series', () async {
-    final dao = db.annotationDao;
-    await dao.replaceChapterAnnotations(
-      chapterId: 1,
-      entries: [annotation(id: 1), annotation(id: 2, seriesId: 2)],
+  test('watchSeriesAnnotations skips other series and deleted rows', () async {
+    await db.annotationDao.mergeAnnotations([
+      remote(serverId: 1),
+      remote(serverId: 2),
+      remote(serverId: 3, chapterId: 3, seriesId: 2),
+    ]);
+    await (db.update(
+      db.annotations,
+    )..where((a) => a.serverId.equals(2))).write(
+      const AnnotationsCompanion(dirty: Value(true), deleted: Value(true)),
     );
 
-    final stored = await dao.watchSeriesAnnotations(seriesId: 2).first;
-    expect(stored.map((a) => a.id), [2]);
+    final annotations = await db.annotationDao
+        .watchSeriesAnnotations(seriesId: 1)
+        .first;
+    expect(annotations.map((a) => a.serverId), [1]);
   });
 
   test('replaceHighlightSlots replaces all slots ordered by index', () async {

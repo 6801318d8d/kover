@@ -801,6 +801,10 @@
     "@syncingHighlightSlots": {
         "description": "Label for the sync phase fetching the user's highlight colors"
     },
+    "syncingAnnotations": "Syncing annotations",
+    "@syncingAnnotations": {
+        "description": "Label for the syncing annotations phase"
+    },
     "invalidCredentials": "Invalid Credentials",
     "@invalidCredentials": {
         "description": "User display error displayed when credentials are invalid"

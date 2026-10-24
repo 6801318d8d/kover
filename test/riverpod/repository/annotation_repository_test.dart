@@ -45,7 +45,7 @@ void main() {
     );
   }
 
-  test('refreshChapterAnnotations stores the fetched annotations', () async {
+  test('refreshChapterAnnotations merges the chapter annotations', () async {
     when(
       mockClient.getChapterAnnotations(1),
     ).thenAnswer((_) async => [dto(), dto(id: null)]);
@@ -54,17 +54,29 @@ void main() {
 
     final entries =
         verify(
-              mockDao.replaceChapterAnnotations(
-                chapterId: 1,
-                entries: captureAnyNamed('entries'),
-              ),
+              mockDao.mergeAnnotations(captureAny, chapterId: 1),
             ).captured.single
             as Iterable<AnnotationsCompanion>;
     final entry = entries.single;
-    expect(entry.id.value, 1);
+    expect(entry.serverId.value, 1);
+    expect(entry.id.present, isFalse);
+    expect(entry.dirty.value, isFalse);
     expect(entry.page.value, 3);
     expect(entry.selectedSlotIndex.value, 2);
     expect(entry.comment.value, 'comment');
+  });
+
+  test('refreshAllAnnotations merges all annotations', () async {
+    when(
+      mockClient.getAllAnnotations(),
+    ).thenAnswer((_) async => [dto(), dto(id: 2)]);
+
+    await repo.refreshAllAnnotations();
+
+    final entries =
+        verify(mockDao.mergeAnnotations(captureAny)).captured.single
+            as Iterable<AnnotationsCompanion>;
+    expect(entries.map((e) => e.serverId.value), [1, 2]);
   });
 
   test('refreshHighlightSlots stores slots by position', () async {

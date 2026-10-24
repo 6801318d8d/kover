@@ -163,6 +163,8 @@ class SyncEngine({
           () async => await syncWantToRead(),
       bookmarks: () =>
           () async => await syncBookmarks(),
+      annotations: () =>
+          () async => await syncAnnotations(),
       collections: () =>
           () async => await syncCollections(),
       readingLists: () =>
@@ -240,6 +242,10 @@ class SyncEngine({
   Future<void> syncBookmarks() async {
     await _pool.withResource(bookmarkRepo.mergeBookmarks);
     await _pool.withResource(bookmarkRepo.refreshAllBookmarks);
+  }
+
+  Future<void> syncAnnotations() async {
+    await _pool.withResource(annotationRepo.refreshAllAnnotations);
   }
 
   Future<void> syncCollections() async {

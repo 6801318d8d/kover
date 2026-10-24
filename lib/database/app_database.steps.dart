@@ -8991,14 +8991,14 @@ final class Schema15 extends i0.VersionedSchema {
       entityName: 'annotations',
       withoutRowId: false,
       isStrict: false,
-      tableConstraints: ['PRIMARY KEY(id)'],
+      tableConstraints: [],
       columns: [
-        _column_4,
+        _column_96,
+        _column_115,
         _column_25,
         _column_44,
         _column_56,
         _column_66,
-        _column_115,
         _column_116,
         _column_117,
         _column_118,
@@ -9006,6 +9006,9 @@ final class Schema15 extends i0.VersionedSchema {
         _column_120,
         _column_121,
         _column_122,
+        _column_123,
+        _column_64,
+        _column_124,
       ],
       attachedDatabase: database,
     ),
@@ -9017,7 +9020,7 @@ final class Schema15 extends i0.VersionedSchema {
       withoutRowId: false,
       isStrict: false,
       tableConstraints: ['PRIMARY KEY(slot_index)'],
-      columns: [_column_123, _column_124],
+      columns: [_column_125, _column_126],
       attachedDatabase: database,
     ),
     alias: null,
@@ -9028,6 +9031,8 @@ class Shape45 extends i0.VersionedTable {
   Shape45({required super.source, required super.alias}) : super.aliased();
   i1.GeneratedColumn<int> get id =>
       columnsByName['id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get serverId =>
+      columnsByName['server_id']! as i1.GeneratedColumn<int>;
   i1.GeneratedColumn<int> get seriesId =>
       columnsByName['series_id']! as i1.GeneratedColumn<int>;
   i1.GeneratedColumn<int> get volumeId =>
@@ -9052,9 +9057,21 @@ class Shape45 extends i0.VersionedTable {
       columnsByName['owner_user_id']! as i1.GeneratedColumn<int>;
   i1.GeneratedColumn<int> get lastModified =>
       columnsByName['last_modified']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get dirty =>
+      columnsByName['dirty']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get deleted =>
+      columnsByName['deleted']! as i1.GeneratedColumn<int>;
 }
 
-i1.GeneratedColumn<String> _column_115(String aliasedName) =>
+i1.GeneratedColumn<int> _column_115(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'server_id',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.int,
+      $customConstraints: 'NULL UNIQUE',
+    );
+i1.GeneratedColumn<String> _column_116(String aliasedName) =>
     i1.GeneratedColumn<String>(
       'x_path',
       aliasedName,
@@ -9062,7 +9079,7 @@ i1.GeneratedColumn<String> _column_115(String aliasedName) =>
       type: i1.DriftSqlType.string,
       $customConstraints: 'NOT NULL',
     );
-i1.GeneratedColumn<String> _column_116(String aliasedName) =>
+i1.GeneratedColumn<String> _column_117(String aliasedName) =>
     i1.GeneratedColumn<String>(
       'ending_x_path',
       aliasedName,
@@ -9070,7 +9087,7 @@ i1.GeneratedColumn<String> _column_116(String aliasedName) =>
       type: i1.DriftSqlType.string,
       $customConstraints: 'NULL',
     );
-i1.GeneratedColumn<String> _column_117(String aliasedName) =>
+i1.GeneratedColumn<String> _column_118(String aliasedName) =>
     i1.GeneratedColumn<String>(
       'selected_text',
       aliasedName,
@@ -9078,7 +9095,7 @@ i1.GeneratedColumn<String> _column_117(String aliasedName) =>
       type: i1.DriftSqlType.string,
       $customConstraints: 'NOT NULL',
     );
-i1.GeneratedColumn<String> _column_118(String aliasedName) =>
+i1.GeneratedColumn<String> _column_119(String aliasedName) =>
     i1.GeneratedColumn<String>(
       'comment',
       aliasedName,
@@ -9086,7 +9103,7 @@ i1.GeneratedColumn<String> _column_118(String aliasedName) =>
       type: i1.DriftSqlType.string,
       $customConstraints: 'NULL',
     );
-i1.GeneratedColumn<int> _column_119(String aliasedName) =>
+i1.GeneratedColumn<int> _column_120(String aliasedName) =>
     i1.GeneratedColumn<int>(
       'selected_slot_index',
       aliasedName,
@@ -9094,7 +9111,7 @@ i1.GeneratedColumn<int> _column_119(String aliasedName) =>
       type: i1.DriftSqlType.int,
       $customConstraints: 'NOT NULL',
     );
-i1.GeneratedColumn<int> _column_120(String aliasedName) =>
+i1.GeneratedColumn<int> _column_121(String aliasedName) =>
     i1.GeneratedColumn<int>(
       'contains_spoiler',
       aliasedName,
@@ -9104,7 +9121,7 @@ i1.GeneratedColumn<int> _column_120(String aliasedName) =>
           'NOT NULL DEFAULT 0 CHECK (contains_spoiler IN (0, 1))',
       defaultValue: const i1.CustomExpression('0'),
     );
-i1.GeneratedColumn<int> _column_121(String aliasedName) =>
+i1.GeneratedColumn<int> _column_122(String aliasedName) =>
     i1.GeneratedColumn<int>(
       'owner_user_id',
       aliasedName,
@@ -9112,13 +9129,22 @@ i1.GeneratedColumn<int> _column_121(String aliasedName) =>
       type: i1.DriftSqlType.int,
       $customConstraints: 'NOT NULL',
     );
-i1.GeneratedColumn<int> _column_122(String aliasedName) =>
+i1.GeneratedColumn<int> _column_123(String aliasedName) =>
     i1.GeneratedColumn<int>(
       'last_modified',
       aliasedName,
       true,
       type: i1.DriftSqlType.int,
       $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<int> _column_124(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'deleted',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.int,
+      $customConstraints: 'NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1))',
+      defaultValue: const i1.CustomExpression('0'),
     );
 
 class Shape46 extends i0.VersionedTable {
@@ -9129,7 +9155,7 @@ class Shape46 extends i0.VersionedTable {
       columnsByName['color']! as i1.GeneratedColumn<int>;
 }
 
-i1.GeneratedColumn<int> _column_123(String aliasedName) =>
+i1.GeneratedColumn<int> _column_125(String aliasedName) =>
     i1.GeneratedColumn<int>(
       'slot_index',
       aliasedName,
@@ -9137,7 +9163,7 @@ i1.GeneratedColumn<int> _column_123(String aliasedName) =>
       type: i1.DriftSqlType.int,
       $customConstraints: 'NOT NULL',
     );
-i1.GeneratedColumn<int> _column_124(String aliasedName) =>
+i1.GeneratedColumn<int> _column_126(String aliasedName) =>
     i1.GeneratedColumn<int>(
       'color',
       aliasedName,

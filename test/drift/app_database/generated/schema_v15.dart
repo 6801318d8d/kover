@@ -13424,9 +13424,18 @@ class Annotations extends Table with TableInfo<Annotations, AnnotationsData> {
     'id',
     aliasedName,
     false,
+    hasAutoIncrement: true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    $customConstraints: 'NOT NULL',
+    $customConstraints: 'NOT NULL PRIMARY KEY AUTOINCREMENT',
+  );
+  late final GeneratedColumn<int> serverId = GeneratedColumn<int>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL UNIQUE',
   );
   late final GeneratedColumn<int> seriesId = GeneratedColumn<int>(
     'series_id',
@@ -13525,9 +13534,28 @@ class Annotations extends Table with TableInfo<Annotations, AnnotationsData> {
     requiredDuringInsert: false,
     $customConstraints: 'NULL',
   );
+  late final GeneratedColumn<int> dirty = GeneratedColumn<int>(
+    'dirty',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0 CHECK (dirty IN (0, 1))',
+    defaultValue: const CustomExpression('0'),
+  );
+  late final GeneratedColumn<int> deleted = GeneratedColumn<int>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1))',
+    defaultValue: const CustomExpression('0'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    serverId,
     seriesId,
     volumeId,
     chapterId,
@@ -13540,6 +13568,8 @@ class Annotations extends Table with TableInfo<Annotations, AnnotationsData> {
     containsSpoiler,
     ownerUserId,
     lastModified,
+    dirty,
+    deleted,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -13556,6 +13586,10 @@ class Annotations extends Table with TableInfo<Annotations, AnnotationsData> {
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_id'],
+      ),
       seriesId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}series_id'],
@@ -13604,6 +13638,14 @@ class Annotations extends Table with TableInfo<Annotations, AnnotationsData> {
         DriftSqlType.int,
         data['${effectivePrefix}last_modified'],
       ),
+      dirty: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}dirty'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted'],
+      )!,
     );
   }
 
@@ -13613,13 +13655,12 @@ class Annotations extends Table with TableInfo<Annotations, AnnotationsData> {
   }
 
   @override
-  List<String> get customConstraints => const ['PRIMARY KEY(id)'];
-  @override
   bool get dontWriteConstraints => true;
 }
 
 class AnnotationsData extends DataClass implements Insertable<AnnotationsData> {
   final int id;
+  final int? serverId;
   final int seriesId;
   final int volumeId;
   final int chapterId;
@@ -13632,8 +13673,11 @@ class AnnotationsData extends DataClass implements Insertable<AnnotationsData> {
   final int containsSpoiler;
   final int ownerUserId;
   final int? lastModified;
+  final int dirty;
+  final int deleted;
   const AnnotationsData({
     required this.id,
+    this.serverId,
     required this.seriesId,
     required this.volumeId,
     required this.chapterId,
@@ -13646,11 +13690,16 @@ class AnnotationsData extends DataClass implements Insertable<AnnotationsData> {
     required this.containsSpoiler,
     required this.ownerUserId,
     this.lastModified,
+    required this.dirty,
+    required this.deleted,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<int>(serverId);
+    }
     map['series_id'] = Variable<int>(seriesId);
     map['volume_id'] = Variable<int>(volumeId);
     map['chapter_id'] = Variable<int>(chapterId);
@@ -13669,12 +13718,17 @@ class AnnotationsData extends DataClass implements Insertable<AnnotationsData> {
     if (!nullToAbsent || lastModified != null) {
       map['last_modified'] = Variable<int>(lastModified);
     }
+    map['dirty'] = Variable<int>(dirty);
+    map['deleted'] = Variable<int>(deleted);
     return map;
   }
 
   AnnotationsCompanion toCompanion(bool nullToAbsent) {
     return AnnotationsCompanion(
       id: Value(id),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
       seriesId: Value(seriesId),
       volumeId: Value(volumeId),
       chapterId: Value(chapterId),
@@ -13693,6 +13747,8 @@ class AnnotationsData extends DataClass implements Insertable<AnnotationsData> {
       lastModified: lastModified == null && nullToAbsent
           ? const Value.absent()
           : Value(lastModified),
+      dirty: Value(dirty),
+      deleted: Value(deleted),
     );
   }
 
@@ -13703,6 +13759,7 @@ class AnnotationsData extends DataClass implements Insertable<AnnotationsData> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return AnnotationsData(
       id: serializer.fromJson<int>(json['id']),
+      serverId: serializer.fromJson<int?>(json['serverId']),
       seriesId: serializer.fromJson<int>(json['seriesId']),
       volumeId: serializer.fromJson<int>(json['volumeId']),
       chapterId: serializer.fromJson<int>(json['chapterId']),
@@ -13715,6 +13772,8 @@ class AnnotationsData extends DataClass implements Insertable<AnnotationsData> {
       containsSpoiler: serializer.fromJson<int>(json['containsSpoiler']),
       ownerUserId: serializer.fromJson<int>(json['ownerUserId']),
       lastModified: serializer.fromJson<int?>(json['lastModified']),
+      dirty: serializer.fromJson<int>(json['dirty']),
+      deleted: serializer.fromJson<int>(json['deleted']),
     );
   }
   @override
@@ -13722,6 +13781,7 @@ class AnnotationsData extends DataClass implements Insertable<AnnotationsData> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'serverId': serializer.toJson<int?>(serverId),
       'seriesId': serializer.toJson<int>(seriesId),
       'volumeId': serializer.toJson<int>(volumeId),
       'chapterId': serializer.toJson<int>(chapterId),
@@ -13734,11 +13794,14 @@ class AnnotationsData extends DataClass implements Insertable<AnnotationsData> {
       'containsSpoiler': serializer.toJson<int>(containsSpoiler),
       'ownerUserId': serializer.toJson<int>(ownerUserId),
       'lastModified': serializer.toJson<int?>(lastModified),
+      'dirty': serializer.toJson<int>(dirty),
+      'deleted': serializer.toJson<int>(deleted),
     };
   }
 
   AnnotationsData copyWith({
     int? id,
+    Value<int?> serverId = const Value.absent(),
     int? seriesId,
     int? volumeId,
     int? chapterId,
@@ -13751,8 +13814,11 @@ class AnnotationsData extends DataClass implements Insertable<AnnotationsData> {
     int? containsSpoiler,
     int? ownerUserId,
     Value<int?> lastModified = const Value.absent(),
+    int? dirty,
+    int? deleted,
   }) => AnnotationsData(
     id: id ?? this.id,
+    serverId: serverId.present ? serverId.value : this.serverId,
     seriesId: seriesId ?? this.seriesId,
     volumeId: volumeId ?? this.volumeId,
     chapterId: chapterId ?? this.chapterId,
@@ -13765,10 +13831,13 @@ class AnnotationsData extends DataClass implements Insertable<AnnotationsData> {
     containsSpoiler: containsSpoiler ?? this.containsSpoiler,
     ownerUserId: ownerUserId ?? this.ownerUserId,
     lastModified: lastModified.present ? lastModified.value : this.lastModified,
+    dirty: dirty ?? this.dirty,
+    deleted: deleted ?? this.deleted,
   );
   AnnotationsData copyWithCompanion(AnnotationsCompanion data) {
     return AnnotationsData(
       id: data.id.present ? data.id.value : this.id,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
       seriesId: data.seriesId.present ? data.seriesId.value : this.seriesId,
       volumeId: data.volumeId.present ? data.volumeId.value : this.volumeId,
       chapterId: data.chapterId.present ? data.chapterId.value : this.chapterId,
@@ -13793,6 +13862,8 @@ class AnnotationsData extends DataClass implements Insertable<AnnotationsData> {
       lastModified: data.lastModified.present
           ? data.lastModified.value
           : this.lastModified,
+      dirty: data.dirty.present ? data.dirty.value : this.dirty,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
     );
   }
 
@@ -13800,6 +13871,7 @@ class AnnotationsData extends DataClass implements Insertable<AnnotationsData> {
   String toString() {
     return (StringBuffer('AnnotationsData(')
           ..write('id: $id, ')
+          ..write('serverId: $serverId, ')
           ..write('seriesId: $seriesId, ')
           ..write('volumeId: $volumeId, ')
           ..write('chapterId: $chapterId, ')
@@ -13811,7 +13883,9 @@ class AnnotationsData extends DataClass implements Insertable<AnnotationsData> {
           ..write('selectedSlotIndex: $selectedSlotIndex, ')
           ..write('containsSpoiler: $containsSpoiler, ')
           ..write('ownerUserId: $ownerUserId, ')
-          ..write('lastModified: $lastModified')
+          ..write('lastModified: $lastModified, ')
+          ..write('dirty: $dirty, ')
+          ..write('deleted: $deleted')
           ..write(')'))
         .toString();
   }
@@ -13819,6 +13893,7 @@ class AnnotationsData extends DataClass implements Insertable<AnnotationsData> {
   @override
   int get hashCode => Object.hash(
     id,
+    serverId,
     seriesId,
     volumeId,
     chapterId,
@@ -13831,12 +13906,15 @@ class AnnotationsData extends DataClass implements Insertable<AnnotationsData> {
     containsSpoiler,
     ownerUserId,
     lastModified,
+    dirty,
+    deleted,
   );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AnnotationsData &&
           other.id == this.id &&
+          other.serverId == this.serverId &&
           other.seriesId == this.seriesId &&
           other.volumeId == this.volumeId &&
           other.chapterId == this.chapterId &&
@@ -13848,11 +13926,14 @@ class AnnotationsData extends DataClass implements Insertable<AnnotationsData> {
           other.selectedSlotIndex == this.selectedSlotIndex &&
           other.containsSpoiler == this.containsSpoiler &&
           other.ownerUserId == this.ownerUserId &&
-          other.lastModified == this.lastModified);
+          other.lastModified == this.lastModified &&
+          other.dirty == this.dirty &&
+          other.deleted == this.deleted);
 }
 
 class AnnotationsCompanion extends UpdateCompanion<AnnotationsData> {
   final Value<int> id;
+  final Value<int?> serverId;
   final Value<int> seriesId;
   final Value<int> volumeId;
   final Value<int> chapterId;
@@ -13865,8 +13946,11 @@ class AnnotationsCompanion extends UpdateCompanion<AnnotationsData> {
   final Value<int> containsSpoiler;
   final Value<int> ownerUserId;
   final Value<int?> lastModified;
+  final Value<int> dirty;
+  final Value<int> deleted;
   const AnnotationsCompanion({
     this.id = const Value.absent(),
+    this.serverId = const Value.absent(),
     this.seriesId = const Value.absent(),
     this.volumeId = const Value.absent(),
     this.chapterId = const Value.absent(),
@@ -13879,9 +13963,12 @@ class AnnotationsCompanion extends UpdateCompanion<AnnotationsData> {
     this.containsSpoiler = const Value.absent(),
     this.ownerUserId = const Value.absent(),
     this.lastModified = const Value.absent(),
+    this.dirty = const Value.absent(),
+    this.deleted = const Value.absent(),
   });
   AnnotationsCompanion.insert({
     this.id = const Value.absent(),
+    this.serverId = const Value.absent(),
     required int seriesId,
     required int volumeId,
     required int chapterId,
@@ -13894,6 +13981,8 @@ class AnnotationsCompanion extends UpdateCompanion<AnnotationsData> {
     this.containsSpoiler = const Value.absent(),
     required int ownerUserId,
     this.lastModified = const Value.absent(),
+    this.dirty = const Value.absent(),
+    this.deleted = const Value.absent(),
   }) : seriesId = Value(seriesId),
        volumeId = Value(volumeId),
        chapterId = Value(chapterId),
@@ -13904,6 +13993,7 @@ class AnnotationsCompanion extends UpdateCompanion<AnnotationsData> {
        ownerUserId = Value(ownerUserId);
   static Insertable<AnnotationsData> custom({
     Expression<int>? id,
+    Expression<int>? serverId,
     Expression<int>? seriesId,
     Expression<int>? volumeId,
     Expression<int>? chapterId,
@@ -13916,9 +14006,12 @@ class AnnotationsCompanion extends UpdateCompanion<AnnotationsData> {
     Expression<int>? containsSpoiler,
     Expression<int>? ownerUserId,
     Expression<int>? lastModified,
+    Expression<int>? dirty,
+    Expression<int>? deleted,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (serverId != null) 'server_id': serverId,
       if (seriesId != null) 'series_id': seriesId,
       if (volumeId != null) 'volume_id': volumeId,
       if (chapterId != null) 'chapter_id': chapterId,
@@ -13931,11 +14024,14 @@ class AnnotationsCompanion extends UpdateCompanion<AnnotationsData> {
       if (containsSpoiler != null) 'contains_spoiler': containsSpoiler,
       if (ownerUserId != null) 'owner_user_id': ownerUserId,
       if (lastModified != null) 'last_modified': lastModified,
+      if (dirty != null) 'dirty': dirty,
+      if (deleted != null) 'deleted': deleted,
     });
   }
 
   AnnotationsCompanion copyWith({
     Value<int>? id,
+    Value<int?>? serverId,
     Value<int>? seriesId,
     Value<int>? volumeId,
     Value<int>? chapterId,
@@ -13948,9 +14044,12 @@ class AnnotationsCompanion extends UpdateCompanion<AnnotationsData> {
     Value<int>? containsSpoiler,
     Value<int>? ownerUserId,
     Value<int?>? lastModified,
+    Value<int>? dirty,
+    Value<int>? deleted,
   }) {
     return AnnotationsCompanion(
       id: id ?? this.id,
+      serverId: serverId ?? this.serverId,
       seriesId: seriesId ?? this.seriesId,
       volumeId: volumeId ?? this.volumeId,
       chapterId: chapterId ?? this.chapterId,
@@ -13963,6 +14062,8 @@ class AnnotationsCompanion extends UpdateCompanion<AnnotationsData> {
       containsSpoiler: containsSpoiler ?? this.containsSpoiler,
       ownerUserId: ownerUserId ?? this.ownerUserId,
       lastModified: lastModified ?? this.lastModified,
+      dirty: dirty ?? this.dirty,
+      deleted: deleted ?? this.deleted,
     );
   }
 
@@ -13971,6 +14072,9 @@ class AnnotationsCompanion extends UpdateCompanion<AnnotationsData> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<int>(serverId.value);
     }
     if (seriesId.present) {
       map['series_id'] = Variable<int>(seriesId.value);
@@ -14008,6 +14112,12 @@ class AnnotationsCompanion extends UpdateCompanion<AnnotationsData> {
     if (lastModified.present) {
       map['last_modified'] = Variable<int>(lastModified.value);
     }
+    if (dirty.present) {
+      map['dirty'] = Variable<int>(dirty.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<int>(deleted.value);
+    }
     return map;
   }
 
@@ -14015,6 +14125,7 @@ class AnnotationsCompanion extends UpdateCompanion<AnnotationsData> {
   String toString() {
     return (StringBuffer('AnnotationsCompanion(')
           ..write('id: $id, ')
+          ..write('serverId: $serverId, ')
           ..write('seriesId: $seriesId, ')
           ..write('volumeId: $volumeId, ')
           ..write('chapterId: $chapterId, ')
@@ -14026,7 +14137,9 @@ class AnnotationsCompanion extends UpdateCompanion<AnnotationsData> {
           ..write('selectedSlotIndex: $selectedSlotIndex, ')
           ..write('containsSpoiler: $containsSpoiler, ')
           ..write('ownerUserId: $ownerUserId, ')
-          ..write('lastModified: $lastModified')
+          ..write('lastModified: $lastModified, ')
+          ..write('dirty: $dirty, ')
+          ..write('deleted: $deleted')
           ..write(')'))
         .toString();
   }

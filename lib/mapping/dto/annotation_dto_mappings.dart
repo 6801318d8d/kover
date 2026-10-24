@@ -6,7 +6,7 @@ import 'package:material_ui/material_ui.dart';
 extension AnnotationDtoMappings on AnnotationDto {
   AnnotationsCompanion toAnnotationCompanion() {
     return AnnotationsCompanion(
-      id: Value(id!),
+      serverId: Value(id),
       seriesId: Value(seriesId),
       volumeId: Value(volumeId),
       chapterId: Value(chapterId),
@@ -19,6 +19,8 @@ extension AnnotationDtoMappings on AnnotationDto {
       containsSpoiler: Value(containsSpoiler ?? false),
       ownerUserId: Value(ownerUserId),
       lastModified: Value(lastModifiedUtc),
+      dirty: const Value(false),
+      deleted: const Value(false),
     );
   }
 }

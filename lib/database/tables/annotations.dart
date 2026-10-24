@@ -3,11 +3,12 @@ import 'package:kover/database/tables/chapters.dart';
 import 'package:kover/database/tables/series.dart';
 import 'package:kover/database/tables/volumes.dart';
 
-/// Epub annotations (highlights) as stored on the server. Rows are keyed by
-/// the server id, as annotations are currently read-only in Kover.
-@DataClassName('AnnotationData')
+/// Epub annotations (highlights). [serverId] is null until an annotation
+/// created locally is pushed to the server; [dirty] and [deleted] mark local
+/// changes still to be merged with the remote state.
 class Annotations extends Table {
-  IntColumn get id => integer()();
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get serverId => integer().nullable().unique()();
   IntColumn get seriesId =>
       integer().references(Series, #id, onDelete: .cascade)();
   IntColumn get volumeId => integer().references(Volumes, #id)();
@@ -23,9 +24,8 @@ class Annotations extends Table {
       boolean().withDefault(const Constant(false))();
   IntColumn get ownerUserId => integer()();
   DateTimeColumn get lastModified => dateTime().nullable()();
-
-  @override
-  Set<Column<Object>>? get primaryKey => {id};
+  BoolColumn get dirty => boolean().withDefault(const Constant(false))();
+  BoolColumn get deleted => boolean().withDefault(const Constant(false))();
 }
 
 /// The user's highlight colors. Annotations reference a slot by its position

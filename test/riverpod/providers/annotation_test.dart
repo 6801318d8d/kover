@@ -9,9 +9,11 @@ void main() {
   const yellow = Color(0x66ffff00);
   const green = Color(0x6600ff00);
 
-  AnnotationModel annotation({required int id, int slot = 0}) {
+  // Local ids differ from server ids: Kavita ids its highlights by server id.
+  AnnotationModel annotation({required int? serverId, int slot = 0}) {
     return AnnotationModel(
-      id: id,
+      id: (serverId ?? 0) + 100,
+      serverId: serverId,
       seriesId: 1,
       volumeId: 1,
       chapterId: 1,
@@ -27,7 +29,10 @@ void main() {
   group('buildHighlightCss', () {
     test('colors each annotation by its highlight slot', () {
       final css = buildHighlightCss(
-        annotations: [annotation(id: 4), annotation(id: 7, slot: 1)],
+        annotations: [
+          annotation(serverId: 4),
+          annotation(serverId: 7, slot: 1),
+        ],
         slots: [yellow, green],
       );
 
@@ -39,6 +44,15 @@ void main() {
       });
     });
 
+    test('skips annotations not on the server yet', () {
+      final css = buildHighlightCss(
+        annotations: [annotation(serverId: null), annotation(serverId: 4)],
+        slots: [yellow],
+      );
+
+      expect(css.keys, ['#${HtmlConstants.highlightIdPrefix}4']);
+    });
+
     test('styles nothing without known annotations', () {
       final css = buildHighlightCss(annotations: [], slots: [green, yellow]);
 
@@ -47,7 +61,7 @@ void main() {
 
     test('falls back to the default color without slots', () {
       final css = buildHighlightCss(
-        annotations: [annotation(id: 4)],
+        annotations: [annotation(serverId: 4)],
         slots: [],
       );
 
@@ -60,7 +74,10 @@ void main() {
 
     test('uses the first slot for a missing slot', () {
       final css = buildHighlightCss(
-        annotations: [annotation(id: 4, slot: 5), annotation(id: 5, slot: -1)],
+        annotations: [
+          annotation(serverId: 4, slot: 5),
+          annotation(serverId: 5, slot: -1),
+        ],
         slots: [yellow, green],
       );
 
