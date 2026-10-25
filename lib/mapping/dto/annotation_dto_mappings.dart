@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:html/dom.dart';
 import 'package:kover/api/openapi.swagger.dart';
 import 'package:kover/database/app_database.dart';
+import 'package:kover/utils/quill_note.dart';
 import 'package:material_ui/material_ui.dart';
 
 extension AnnotationDtoMappings on AnnotationDto {
@@ -15,11 +16,7 @@ extension AnnotationDtoMappings on AnnotationDto {
       xPath: Value(xPath ?? ''),
       endingXPath: Value(endingXPath),
       selectedText: Value(selectedText ?? ''),
-      // Kavita escapes HTML in the plain text of the note.
-      comment: Value(switch (commentPlainText) {
-        final text? => DocumentFragment.html(text).text,
-        null => comment,
-      }),
+      comment: Value(noteText),
       selectedSlotIndex: Value(selectedSlotIndex ?? 0),
       containsSpoiler: Value(containsSpoiler ?? false),
       ownerUserId: Value(ownerUserId),
@@ -27,6 +24,17 @@ extension AnnotationDtoMappings on AnnotationDto {
       dirty: const Value(false),
       deleted: const Value(false),
     );
+  }
+
+  /// The note as plain text: from its Quill document, which keeps the line
+  /// breaks, else from the plain text Kavita derives from it (HTML escaped,
+  /// lines joined), else as written by a client that sent plain text.
+  String? get noteText {
+    if (QuillNote.text(comment) case final text?) return text;
+    if (commentPlainText case final text? when text.isNotEmpty) {
+      return DocumentFragment.html(text).text;
+    }
+    return comment;
   }
 }
 

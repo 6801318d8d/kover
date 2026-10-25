@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:kover/api/openapi.swagger.dart';
 import 'package:kover/database/app_database.dart';
 import 'package:kover/mapping/dto/annotation_dto_mappings.dart';
@@ -6,6 +7,7 @@ import 'package:kover/riverpod/providers/client.dart';
 import 'package:kover/riverpod/repository/database.dart';
 import 'package:kover/sync/annotation_sync_operations.dart';
 import 'package:kover/utils/logging.dart';
+import 'package:kover/utils/quill_note.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -61,6 +63,151 @@ class AnnotationRepository(
         'count': entries.length,
       },
     );
+  }
+
+  /// Creates a highlight of [selectedText] on the server and stores it. The
+  /// server injects highlights into the pages it serves, so creating one
+  /// needs a connection: errors are thrown.
+  ///
+  /// [xPath] and [endingXPath] locate the elements where the selection starts
+  /// and ends, as computed by [KavitaXPathExtension.kavitaXPath]. [context]
+  /// is the text around the selection, shown by the web reader.
+  Future<AnnotationModel> createAnnotation({
+    required int seriesId,
+    required int volumeId,
+    required int chapterId,
+    required int page,
+    required int ownerUserId,
+    required String xPath,
+    required String endingXPath,
+    required String selectedText,
+    required String context,
+    required String comment,
+    required int selectedSlotIndex,
+    required bool containsSpoiler,
+  }) async {
+    final series = await _db.seriesDao.getSeries(seriesId);
+    final created = await _client.create(
+      AnnotationDto(
+        xPath: xPath,
+        endingXPath: endingXPath,
+        selectedText: selectedText,
+        highlightCount: selectedText.length,
+        context: context,
+        comment: QuillNote.delta(comment),
+        commentHtml: QuillNote.html(comment),
+        containsSpoiler: containsSpoiler,
+        pageNumber: page,
+        selectedSlotIndex: selectedSlotIndex,
+        chapterId: chapterId,
+        volumeId: volumeId,
+        seriesId: seriesId,
+        libraryId: series.libraryId,
+        ownerUserId: ownerUserId,
+      ),
+    );
+
+    final stored = await _db.annotationDao.saveRemote(
+      created.toAnnotationCompanion(),
+    );
+    log.debug(
+      'created annotation',
+      attributes: {'chapter_id': chapterId, 'server_id': created.id},
+    );
+    return AnnotationModel.fromDatabaseModel(stored);
+  }
+
+  /// Changes the note, highlight slot and spoiler flag of [annotation]. The
+  /// change is stored at once and sent to the server; if that fails, the
+  /// next sync sends it. Returns whether the server has the change.
+  Future<bool> updateAnnotation(
+    AnnotationModel annotation, {
+    required String comment,
+    required int selectedSlotIndex,
+    required bool containsSpoiler,
+  }) async {
+    await _db.annotationDao.updateLocal(
+      annotation.id,
+      AnnotationsCompanion(
+        comment: Value(comment),
+        selectedSlotIndex: Value(selectedSlotIndex),
+        containsSpoiler: Value(containsSpoiler),
+      ),
+    );
+    return _tryPush(annotation.id);
+  }
+
+  /// Deletes [annotation]. It disappears at once and the deletion is sent to
+  /// the server; if that fails, the next sync sends it. Returns whether the
+  /// server has the deletion.
+  Future<bool> deleteAnnotation(AnnotationModel annotation) async {
+    if (annotation.serverId == null) {
+      await _db.annotationDao.deleteById(annotation.id);
+      return true;
+    }
+
+    await _db.annotationDao.markDeleted(annotation.id);
+    return _tryPush(annotation.id);
+  }
+
+  /// Sends the local changes of all annotations to the server.
+  Future<void> pushAnnotations() async {
+    for (final row in await _db.annotationDao.getDirty()) {
+      try {
+        await _push(row);
+      } catch (e, stacktrace) {
+        log.error(
+          'could not push annotation',
+          error: e,
+          stacktrace: stacktrace,
+        );
+      }
+    }
+  }
+
+  Future<bool> _tryPush(int id) async {
+    final row = await _db.annotationDao.getAnnotation(id);
+    if (row == null) return true;
+
+    try {
+      await _push(row);
+      return true;
+    } catch (e) {
+      log.info('could not push annotation', attributes: {'error': e});
+      return false;
+    }
+  }
+
+  /// Sends the local changes of [row] to the server and stores the result.
+  Future<void> _push(Annotation row) async {
+    final serverId = row.serverId;
+    if (serverId == null) return;
+
+    if (row.deleted) {
+      await _client.delete(serverId);
+      await _db.annotationDao.deleteById(row.id);
+      return;
+    }
+
+    // Update replaces the whole note: start from the server's copy so that
+    // a note formatted in the web reader is only rewritten when changed.
+    final remote = await _client.get(serverId);
+    if (remote == null) {
+      await _db.annotationDao.deleteById(row.id);
+      return;
+    }
+
+    final comment = row.comment ?? '';
+    final noteChanged = (remote.noteText ?? '') != comment;
+    final updated = await _client.update(
+      remote.copyWith(
+        selectedSlotIndex: row.selectedSlotIndex,
+        containsSpoiler: row.containsSpoiler,
+        comment: noteChanged ? QuillNote.delta(comment) : remote.comment,
+        commentHtml: noteChanged ? QuillNote.html(comment) : remote.commentHtml,
+      ),
+    );
+    await _db.annotationDao.markPushed(row.id, updated.toAnnotationCompanion());
   }
 
   /// Fetch the highlight colors from the user preferences and replace the

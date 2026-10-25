@@ -164,6 +164,27 @@ class const DownloadRepository({
     }
   }
 
+  /// Downloads [page] of [chapterId] again when it is stored, e.g. after an
+  /// annotation changed the highlights the server injects into it.
+  Future<void> refreshEpubPage({
+    required int chapterId,
+    required int page,
+  }) async {
+    final stored = await _db.downloadDao.downloadedPageNumbers(
+      chapterId: chapterId,
+    );
+    if (!stored.contains(page)) return;
+
+    await _db.downloadDao.insertPage(
+      DownloadedPagesCompanion.insert(
+        chapterId: chapterId,
+        page: page,
+        data: await _downloadEpubPage(chapterId: chapterId, page: page),
+        lastSync: Value(DateTime.timestamp()),
+      ),
+    );
+  }
+
   /// Downloads a single epub page, persisting its fonts to the font cache
   /// and returning the serialized page. Font bytes are stored once in the
   /// fonts table.

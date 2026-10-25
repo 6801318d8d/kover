@@ -70,6 +70,60 @@ class AnnotationDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
+  /// The annotation with the local [id], if stored.
+  Future<Annotation?> getAnnotation(int id) {
+    return (select(
+      annotations,
+    )..where((row) => row.id.equals(id))).getSingleOrNull();
+  }
+
+  /// Stores the server's copy [entry] of an annotation, replacing the row
+  /// with the same server id, and returns it.
+  Future<Annotation> saveRemote(AnnotationsCompanion entry) {
+    return into(annotations).insertReturning(
+      entry,
+      onConflict: DoUpdate((_) => entry, target: [annotations.serverId]),
+    );
+  }
+
+  /// Stores an annotation created locally, marked as dirty until the server
+  /// has it, and returns it.
+  Future<Annotation> insertLocal(AnnotationsCompanion entry) {
+    return into(
+      annotations,
+    ).insertReturning(entry.copyWith(dirty: const Value(true)));
+  }
+
+  /// Applies the local [changes] to annotation [id], marking it as dirty
+  /// until the server has them.
+  Future<void> updateLocal(int id, AnnotationsCompanion changes) {
+    return (update(annotations)..where((row) => row.id.equals(id))).write(
+      changes.copyWith(dirty: const Value(true)),
+    );
+  }
+
+  /// Marks annotation [id] as deleted until the server deletes it too.
+  Future<void> markDeleted(int id) {
+    return updateLocal(id, const AnnotationsCompanion(deleted: Value(true)));
+  }
+
+  /// Stores the server's copy [entry] of annotation [id], whose local changes
+  /// the server now has.
+  Future<void> markPushed(int id, AnnotationsCompanion entry) {
+    return (update(annotations)..where((row) => row.id.equals(id))).write(
+      entry.copyWith(dirty: const Value(false)),
+    );
+  }
+
+  Future<void> deleteById(int id) {
+    return (delete(annotations)..where((row) => row.id.equals(id))).go();
+  }
+
+  /// Annotations with local changes the server doesn't have yet.
+  Future<List<Annotation>> getDirty() {
+    return (select(annotations)..where((row) => row.dirty.equals(true))).get();
+  }
+
   /// Watch the highlight slots, ordered by slot index.
   Stream<List<HighlightSlotData>> watchHighlightSlots() {
     return (select(

@@ -1,35 +1,38 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:kover/generated/l10n/app_localizations.dart';
 import 'package:kover/models/annotation_model.dart';
+import 'package:kover/pages/reader/epub_reader/annotation_actions.dart';
+import 'package:kover/pages/reader/epub_reader/annotation_widgets.dart';
 import 'package:kover/riverpod/providers/annotation.dart';
-import 'package:kover/riverpod/providers/theme.dart' hide Theme;
+import 'package:kover/riverpod/providers/auth.dart';
+import 'package:kover/utils/constants/kover_icons.dart';
 import 'package:kover/utils/layout_constants.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Shows the highlighted text of [annotation] and its note in a bottom sheet.
+enum _AnnotationAction { edit, delete }
+
+/// Shows the highlighted text of [annotation] and its note in a bottom sheet,
+/// from which the owner can edit or delete it.
 Future<void> showAnnotationSheet(
   BuildContext context,
   WidgetRef ref, {
   required AnnotationModel annotation,
-}) {
-  final reduceAnimations =
-      ref.read(themeProvider).value?.reduceAnimations ??
-      const ThemeModel().reduceAnimations;
-
-  return showModalBottomSheet(
-    context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    useSafeArea: true,
-    constraints: BoxConstraints(
-      maxHeight: MediaQuery.sizeOf(context).height * 0.85,
-      maxWidth: LayoutBreakpoints.medium,
-    ),
-    sheetAnimationStyle: reduceAnimations
-        ? const AnimationStyle(duration: .zero, reverseDuration: .zero)
-        : null,
+}) async {
+  final action = await showAnnotationBottomSheet<_AnnotationAction>(
+    context,
+    ref,
     builder: (context) => AnnotationSheet(annotation: annotation),
   );
+  if (!context.mounted) return;
+
+  switch (action) {
+    case .edit:
+      await editAnnotation(context, ref, annotation);
+    case .delete:
+      await deleteAnnotation(context, ref, annotation);
+    case null:
+      return;
+  }
 }
 
 class AnnotationSheet extends ConsumerWidget {
@@ -41,13 +44,17 @@ class AnnotationSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final textTheme = Theme.of(context).textTheme;
-    final mutedColor = Theme.of(context).colorScheme.onSurfaceVariant;
+    final colorScheme = Theme.of(context).colorScheme;
+    final mutedColor = colorScheme.onSurfaceVariant;
 
     final slots = ref.watch(highlightSlotsProvider).value ?? const [];
     final highlightColor = highlightSlotColor(
       slots,
       annotation.selectedSlotIndex,
-    ).withValues(alpha: 1);
+    );
+    // Shared annotations of other users can only be read.
+    final isOwner =
+        ref.watch(currentUserProvider).value?.id == annotation.ownerUserId;
 
     final comment = annotation.comment?.trim() ?? '';
     final lastModified = annotation.lastModified;
@@ -78,26 +85,9 @@ class AnnotationSheet extends ConsumerWidget {
                 ),
             ],
           ),
-          Container(
-            padding: const EdgeInsetsDirectional.only(
-              start:
-                  LayoutConstants.smallPadding + LayoutConstants.smallerPadding,
-            ),
-            decoration: BoxDecoration(
-              border: BorderDirectional(
-                start: BorderSide(
-                  color: highlightColor,
-                  width: LayoutConstants.smallerPadding,
-                ),
-              ),
-            ),
-            child: Text(
-              annotation.selectedText,
-              style: textTheme.bodyMedium?.copyWith(
-                fontStyle: .italic,
-                color: mutedColor,
-              ),
-            ),
+          AnnotationQuote(
+            text: annotation.selectedText,
+            color: highlightColor,
           ),
           if (comment.isNotEmpty)
             SelectableText(comment, style: textTheme.bodyLarge)
@@ -105,6 +95,28 @@ class AnnotationSheet extends ConsumerWidget {
             Text(
               l.noAnnotationNote,
               style: textTheme.bodyMedium?.copyWith(color: mutedColor),
+            ),
+          if (isOwner)
+            Row(
+              mainAxisAlignment: .end,
+              spacing: LayoutConstants.smallPadding,
+              children: [
+                TextButton.icon(
+                  onPressed: () =>
+                      Navigator.of(context).pop(_AnnotationAction.delete),
+                  style: TextButton.styleFrom(
+                    foregroundColor: colorScheme.error,
+                  ),
+                  icon: const Icon(KoverIcons.trash),
+                  label: Text(l.delete),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: () =>
+                      Navigator.of(context).pop(_AnnotationAction.edit),
+                  icon: const Icon(KoverIcons.edit),
+                  label: Text(l.edit),
+                ),
+              ],
             ),
         ],
       ),
