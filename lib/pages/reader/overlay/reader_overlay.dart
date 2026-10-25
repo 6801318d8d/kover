@@ -132,6 +132,9 @@ class ReaderOverlay extends HookConsumerWidget {
           );
 
           return Scaffold(
+            // A keyboard opened by a sheet over the reader, e.g. to write an
+            // annotation, must not shrink the pages: that would reflow them.
+            resizeToAvoidBottomInset: false,
             endDrawerEnableOpenDragGesture: false,
             endDrawer: endDrawer,
             body: ReaderShortcuts(
