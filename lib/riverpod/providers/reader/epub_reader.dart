@@ -212,9 +212,9 @@ class EpubReflow extends _$EpubReflow {
         }
 
         if (height <= maxHeight) {
-          await _addElement();
+          await _addElement(fill: height / maxHeight);
         } else {
-          await _handleOverflow();
+          await _handleOverflow(fill: height / maxHeight);
         }
 
         // Yield to the event loop periodically to keep the UI responsive.
@@ -235,11 +235,11 @@ class EpubReflow extends _$EpubReflow {
     }
   }
 
-  Future<void> _addElement() async {
+  Future<void> _addElement({required double fill}) async {
     final current = state.value;
     if (current == null || current.status == .done) return;
 
-    final next = _cursor.addNext();
+    final next = _cursor.addNext(fill: fill);
     if (next) return;
 
     final tail = DocumentFragment()..append(_cursor.buffer.clone(true));
@@ -271,11 +271,11 @@ class EpubReflow extends _$EpubReflow {
     state = AsyncData(newState);
   }
 
-  Future<void> _handleOverflow() async {
+  Future<void> _handleOverflow({required double fill}) async {
     final current = state.value;
     if (current == null || current.status == .done) return;
 
-    if (_cursor.overflow()) return;
+    if (_cursor.overflow(fill: fill)) return;
 
     final newSubpageNode = _cursor.commitSplit();
 

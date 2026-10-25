@@ -1,5 +1,8 @@
+import 'dart:math';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:html/dom.dart';
+import 'package:kover/utils/extensions/document_fragment.dart';
 import 'package:kover/utils/html_constants.dart';
 import 'package:kover/utils/reflow_engine.dart';
 
@@ -332,5 +335,155 @@ void main() {
         isNot(contains(HtmlConstants.splitParagraphAttribute)),
       );
     });
+
+    group('with measured fill', () {
+      for (var seed = 0; seed < 30; seed++) {
+        test('paginates book $seed like without fill, in fewer measures', () {
+          final root = _book(Random(seed));
+
+          final plain = _paginate(root, withFill: false);
+          final aimed = _paginate(root, withFill: true);
+
+          expect(aimed.pages, plain.pages);
+          expect(aimed.measures, lessThan(plain.measures));
+        });
+      }
+
+      test('needs about half the measures on long books', () {
+        var plain = 0;
+        var aimed = 0;
+        for (var seed = 100; seed < 110; seed++) {
+          final root = _book(Random(seed), paragraphs: 120);
+          plain += _paginate(root, withFill: false).measures;
+          aimed += _paginate(root, withFill: true).measures;
+        }
+
+        expect(aimed, lessThan(plain * 0.6));
+      });
+    });
   });
+}
+
+/// A pseudo-random book: paragraphs of words with emphasized runs, images
+/// between them and some paragraphs grouped in nested divs.
+Element _book(Random random, {int paragraphs = 40}) {
+  String words(int count) => [
+    for (var i = 0; i < count; i++)
+      String.fromCharCodes(
+        List.generate(1 + random.nextInt(9), (_) => 97 + random.nextInt(26)),
+      ),
+  ].join(' ');
+
+  Element paragraph() {
+    final p = Element.tag('p')..append(Text(words(1 + random.nextInt(120))));
+    if (random.nextDouble() < 0.3) {
+      p
+        ..append(Element.tag('em')..append(Text(' ${words(3)}')))
+        ..append(Text(' ${words(1 + random.nextInt(40))}'));
+    }
+    return p;
+  }
+
+  final root = Element.tag('div');
+  for (var i = 0; i < paragraphs; i++) {
+    if (random.nextDouble() < 0.05) root.append(Element.tag('img'));
+    if (random.nextDouble() < 0.1) {
+      root.append(
+        Element.tag('div')
+          ..append(paragraph())
+          ..append(paragraph()),
+      );
+    } else {
+      root.append(paragraph());
+    }
+  }
+  return root;
+}
+
+const _lineChars = 40;
+const _lineHeight = 10.0;
+const _paragraphMargin = 5.0;
+const _imageHeight = 80.0;
+const _pageHeight = 30 * _lineHeight;
+
+/// Lays [root] out like a fixed-width font: words wrap greedily into lines,
+/// paragraphs add a margin and images a fixed height. Adding content never
+/// makes it shorter, as with the real layout.
+double _height(Element root) {
+  var height = 0.0;
+  final inline = StringBuffer();
+
+  void flush() {
+    final words = inline.toString().split(RegExp(r'\s+'))
+      ..removeWhere((w) => w.isEmpty);
+    inline.clear();
+    if (words.isEmpty) return;
+
+    var lines = 1;
+    var width = 0;
+    for (final word in words) {
+      final needed = width == 0 ? word.length : width + 1 + word.length;
+      if (needed > _lineChars && width > 0) {
+        lines++;
+        width = word.length;
+      } else {
+        width = needed;
+      }
+    }
+    height += lines * _lineHeight;
+  }
+
+  void visit(Node node) {
+    if (node is Text) {
+      inline.write(node.text);
+    } else if (node is Element) {
+      switch (node.localName) {
+        case 'img':
+          flush();
+          height += _imageHeight;
+        case 'p':
+          flush();
+          node.nodes.forEach(visit);
+          flush();
+          height += _paragraphMargin;
+        case 'div':
+          flush();
+          node.nodes.forEach(visit);
+          flush();
+        default:
+          node.nodes.forEach(visit);
+      }
+    }
+  }
+
+  root.nodes.forEach(visit);
+  flush();
+  return height;
+}
+
+/// Runs [root] through the engine like the epub reflow driver does.
+({List<String> pages, int measures}) _paginate(
+  Element root, {
+  required bool withFill,
+}) {
+  final engine = ExponentialBinaryReflowEngine(root: root);
+  final pages = <String>[];
+  var measures = 0;
+
+  while (true) {
+    final height = _height(engine.buffer);
+    measures++;
+    expect(measures, lessThan(100000), reason: 'the reflow must terminate');
+
+    final fill = withFill ? height / _pageHeight : null;
+    if (height <= _pageHeight) {
+      if (!engine.addNext(fill: fill)) {
+        if (engine.buffer.hasVisibleNodes) pages.add(engine.buffer.outerHtml);
+        return (pages: pages, measures: measures);
+      }
+    } else if (!engine.overflow(fill: fill)) {
+      final page = engine.commitSplit();
+      if (page.hasVisibleNodes) pages.add(page.outerHtml);
+    }
+  }
 }

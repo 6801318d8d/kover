@@ -86,6 +86,34 @@ void main() {
     expect(third, const Size(100, 100));
   });
 
+  test('finds the target again when the widget tree changes', () {
+    pipeline.attach(size: const Size(400, 800), devicePixelRatio: 1);
+
+    final first = pipeline.measure(
+      const Column(
+        mainAxisSize: .min,
+        children: [
+          MeasureTarget(child: SizedBox(width: 100, height: 100)),
+        ],
+      ),
+    );
+    final second = pipeline.measure(
+      const Column(
+        mainAxisSize: .min,
+        children: [
+          SizedBox(height: 10),
+          Padding(
+            padding: EdgeInsets.zero,
+            child: MeasureTarget(child: SizedBox(width: 100, height: 250)),
+          ),
+        ],
+      ),
+    );
+
+    expect(first, const Size(100, 100));
+    expect(second, const Size(100, 250));
+  });
+
   test('build failure throws MeasureTreeBuildException', () {
     pipeline.attach(size: const Size(400, 800), devicePixelRatio: 1);
 

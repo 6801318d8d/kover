@@ -39,6 +39,10 @@ class HeadlessMeasurePipeline {
   RenderView? _renderView;
   RenderObjectToWidgetElement<RenderBox>? _rootElement;
 
+  /// The target found by the last measure; it usually survives between
+  /// measures of the same widget tree.
+  RenderMeasureTarget? _target;
+
   /// The viewport size the pipeline is currently attached to.
   Size? viewportSize;
 
@@ -76,35 +80,40 @@ class HeadlessMeasurePipeline {
       'attach() must be called before measure()',
     );
 
-    _rootElement = RenderObjectToWidgetAdapter<RenderBox>(
-      container: _renderView!,
-      child: widget,
-    ).attachToRenderTree(_buildOwner!, _rootElement);
+    // A widget failing to build is reported before the framework swaps in
+    // an ErrorWidget: catch the report instead of searching the render tree.
+    FlutterErrorDetails? buildError;
+    final previousOnError = FlutterError.onError;
+    FlutterError.onError = (details) {
+      buildError ??= details;
+      previousOnError?.call(details);
+    };
+    try {
+      _rootElement = RenderObjectToWidgetAdapter<RenderBox>(
+        container: _renderView!,
+        child: widget,
+      ).attachToRenderTree(_buildOwner!, _rootElement);
 
-    _buildOwner!.buildScope(_rootElement!);
-    _buildOwner!.finalizeTree();
+      _buildOwner!.buildScope(_rootElement!);
+      _buildOwner!.finalizeTree();
+    } finally {
+      FlutterError.onError = previousOnError;
+    }
+
+    if (buildError case final error?) {
+      throw MeasureTreeBuildException(error.exceptionAsString());
+    }
+
     _pipelineOwner!.flushLayout();
 
     final rootChild = _renderView!.child;
     if (rootChild == null) return Size.zero;
 
-    final errorBox = _findRenderErrorBox(rootChild);
-    if (errorBox != null) {
-      throw MeasureTreeBuildException(errorBox.message);
-    }
-
-    final target = _findMeasureTarget(rootChild);
+    final cached = _target;
+    final target = cached != null && cached.attached
+        ? cached
+        : _target = _findMeasureTarget(rootChild);
     return target?.hasSize == true ? target!.size : Size.zero;
-  }
-
-  RenderErrorBox? _findRenderErrorBox(RenderObject node) {
-    if (node is RenderErrorBox) return node;
-
-    RenderErrorBox? found;
-    node.visitChildren((child) {
-      found ??= _findRenderErrorBox(child);
-    });
-    return found;
   }
 
   RenderMeasureTarget? _findMeasureTarget(RenderObject node) {
@@ -133,6 +142,7 @@ class HeadlessMeasurePipeline {
       }
       _rootElement = null;
     }
+    _target = null;
 
     _renderView?.detach();
     _renderView = null;
