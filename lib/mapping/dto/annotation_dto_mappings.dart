@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:html/dom.dart';
 import 'package:kover/api/openapi.swagger.dart';
 import 'package:kover/database/app_database.dart';
 import 'package:material_ui/material_ui.dart';
@@ -14,7 +15,11 @@ extension AnnotationDtoMappings on AnnotationDto {
       xPath: Value(xPath ?? ''),
       endingXPath: Value(endingXPath),
       selectedText: Value(selectedText ?? ''),
-      comment: Value(commentPlainText ?? comment),
+      // Kavita escapes HTML in the plain text of the note.
+      comment: Value(switch (commentPlainText) {
+        final text? => DocumentFragment.html(text).text,
+        null => comment,
+      }),
       selectedSlotIndex: Value(selectedSlotIndex ?? 0),
       containsSpoiler: Value(containsSpoiler ?? false),
       ownerUserId: Value(ownerUserId),

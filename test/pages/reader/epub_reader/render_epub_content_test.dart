@@ -4,6 +4,7 @@ import 'package:kover/pages/reader/epub_reader/render_epub_content.dart';
 import 'package:kover/pages/reader/epub_reader/render_epub_content_provider.dart';
 import 'package:kover/riverpod/providers/settings/epub_reader_settings.dart';
 import 'package:kover/utils/extensions/color.dart';
+import 'package:kover/utils/highlight_recognizer.dart';
 import 'package:kover/utils/html_constants.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -73,5 +74,39 @@ void main() {
     );
 
     expect(background(spans, 'marked'), isNull);
+  });
+
+  testWidgets('marks highlighted text with its annotation id', (tester) async {
+    final spans = await pumpContent(
+      tester,
+      '<p>plain <${HtmlConstants.highlightTag} '
+      'id="${HtmlConstants.highlightIdPrefix}2">marked</${HtmlConstants.highlightTag}></p>',
+    );
+
+    expect(
+      spans.firstWhere((s) => s.text == 'marked').recognizer,
+      isA<HighlightRecognizer>().having((r) => r.annotationId, 'id', 2),
+    );
+    expect(spans.firstWhere((s) => s.text == 'plain ').recognizer, isNull);
+  });
+
+  testWidgets('finds the highlight under a position', (tester) async {
+    await pumpContent(
+      tester,
+      '<p><${HtmlConstants.highlightTag} '
+      'id="${HtmlConstants.highlightIdPrefix}2">marked</${HtmlConstants.highlightTag}>'
+      ' plain</p>',
+    );
+    final context = tester.element(find.byType(RenderEpubContent));
+    final paragraph = find.byType(RichText).first;
+
+    expect(
+      highlightAt(context, tester.getTopLeft(paragraph) + const Offset(4, 4)),
+      2,
+    );
+    expect(
+      highlightAt(context, tester.getTopRight(paragraph) + const Offset(-4, 4)),
+      isNull,
+    );
   });
 }

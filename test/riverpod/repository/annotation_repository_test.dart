@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kover/api/openapi.swagger.dart';
 import 'package:kover/database/app_database.dart';
 import 'package:kover/database/dao/annotation_dao.dart';
+import 'package:kover/mapping/dto/annotation_dto_mappings.dart';
 import 'package:kover/riverpod/repository/annotation_repository.dart';
 import 'package:kover/sync/annotation_sync_operations.dart';
 import 'package:material_ui/material_ui.dart';
@@ -29,12 +30,12 @@ void main() {
     repo = AnnotationRepository(mockDb, mockClient);
   });
 
-  AnnotationDto dto({int? id = 1, int? slot = 2}) {
+  AnnotationDto dto({int? id = 1, int? slot = 2, String comment = 'comment'}) {
     return AnnotationDto(
       id: id,
       xPath: '//body/p[1]',
       selectedText: 'text',
-      commentPlainText: 'comment',
+      commentPlainText: comment,
       pageNumber: 3,
       selectedSlotIndex: slot,
       chapterId: 1,
@@ -64,6 +65,14 @@ void main() {
     expect(entry.page.value, 3);
     expect(entry.selectedSlotIndex.value, 2);
     expect(entry.comment.value, 'comment');
+  });
+
+  test('decodes the HTML escapes in the note', () {
+    final entry = dto(
+      comment: 'I&#39;m sure 1 &lt; 2 &amp; 3',
+    ).toAnnotationCompanion();
+
+    expect(entry.comment.value, "I'm sure 1 < 2 & 3");
   });
 
   test('refreshAllAnnotations merges all annotations', () async {

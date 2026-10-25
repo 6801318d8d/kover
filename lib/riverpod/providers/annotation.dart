@@ -50,17 +50,21 @@ Map<String, Map<String, String>> buildHighlightCss({
   required List<AnnotationModel> annotations,
   required List<Color> slots,
 }) {
-  Color slotColor(int index) => index >= 0 && index < slots.length
-      ? slots[index]
-      : slots.firstOrNull ?? defaultHighlightColor;
-
   return {
     for (final annotation in annotations)
       if (annotation.serverId != null)
         '#${HtmlConstants.highlightIdPrefix}${annotation.serverId}': {
-          'background-color': slotColor(
+          'background-color': highlightSlotColor(
+            slots,
             annotation.selectedSlotIndex,
           ).toCssRgba(),
         },
   };
 }
+
+/// The color of the highlight slot at [index] in [slots], falling back to the
+/// first slot when there is no such slot.
+Color highlightSlotColor(List<Color> slots, int index) =>
+    index >= 0 && index < slots.length
+    ? slots[index]
+    : slots.firstOrNull ?? defaultHighlightColor;
